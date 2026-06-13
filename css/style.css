@@ -312,11 +312,29 @@ em { font-style: italic; color: inherit; }
 .plot-readout { text-align: center; font-size: 0.9rem; color: var(--muted); margin-top: 0.4rem; }
 .jxg-board { width: 100%; height: 320px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
 
+/* Diagramme en boîte (box-plot SVG) */
+.boxplot { max-width: 460px; }
+.bp-whisker { stroke: var(--muted); stroke-width: 1.5; }
+.bp-cap { stroke: var(--muted); stroke-width: 2; }
+.bp-box { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+.bp-median { stroke: var(--accent-ink); stroke-width: 3; }
+.bp-role { fill: var(--accent-ink); font-size: 11px; font-weight: 700; }
+
 /* Simulateur de tirage (probabilités) */
 .simulateur { text-align: center; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
-.sim-face { font-size: 3.5rem; line-height: 1; margin-bottom: 0.6rem; }
+.sim-face { font-size: 3.5rem; line-height: 1; margin-bottom: 0.6rem; min-height: 3.5rem; }
 .simulateur .btn { margin: 0.2rem; }
 .sim-stats { margin-top: 0.7rem; font-size: 0.9rem; color: var(--muted); }
+/* Urne : boules colorées */
+.sim-urn { display: flex; flex-wrap: wrap; gap: 0.25rem; justify-content: center; margin-bottom: 0.6rem; }
+.urn-ball { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(0,0,0,0.15); box-shadow: inset -2px -2px 3px rgba(0,0,0,0.18); }
+/* Barres de fréquence horizontales (loi des grands nombres) */
+.sim-bars { display: flex; flex-direction: column; gap: 0.3rem; margin: 0.7rem auto 0.3rem; max-width: 280px; }
+.sim-bar { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; }
+.sim-bar .bar-lab { width: 3.6rem; text-align: right; color: var(--muted); white-space: nowrap; }
+.sim-bar .bar-track { flex: 1; height: 14px; background: var(--surface-2); border-radius: 7px; overflow: hidden; }
+.sim-bar .bar-fill { height: 100%; background: var(--accent); border-radius: 7px; transition: width 0.25s; }
+.sim-bar .bar-pct { width: 2.6rem; text-align: left; font-weight: 700; color: var(--accent-ink); }
 
 /* Pseudo-code (algorithmique) */
 .pseudocode {
@@ -442,7 +460,8 @@ em { font-style: italic; color: inherit; }
 /* --- Type "complète le calcul" --- */
 .complete-zone { font-size: 1.15rem; line-height: 2.1; }
 .complete-txt { white-space: normal; }
-.complete-input { width: 64px; min-height: 40px; padding: 0.3rem 0.4rem; margin: 0 0.2rem; font: inherit; font-size: 1.05rem; text-align: center; border: 2px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
+/* Largeur auto (s'adapte au contenu) : ne tronque plus un nombre à 3+ chiffres. */
+.complete-input { width: auto; min-width: 3.5ch; max-width: 14ch; field-sizing: content; min-height: 40px; padding: 0.3rem 0.5rem; margin: 0 0.2rem; font: inherit; font-size: 1.05rem; text-align: center; border: 2px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
 .complete-input:focus { outline: none; border-color: var(--accent); }
 
 /* --- Correction pas-à-pas --- */

@@ -100,18 +100,76 @@ export default {
       generer() {
         const n = randInt(4, 8);
         let s = 0; for (let i = 1; i <= n; i++) if (i % 2 === 0) s += i;
-        return { enonce: code(['s ← 0', `pour i de 1 à ${n}`, '    si i est pair', '        s ← s + i', 'afficher s']), reponse: s, validation: 'nombre' };
+        return { enonce: code(['s ← 0', `pour i de 1 à ${n}`, '    si i est pair', '        s ← s + i', 'afficher s']), reponse: s, validation: 'nombre', _v: { n } };
       },
       indices: ['On n\'ajoute que les $i$ pairs.', 'Ignore les valeurs impaires.', 'Additionne 2, 4, 6, … jusqu\'à $n$.'],
-      correction_detaillee: () => `<p>Seuls les nombres pairs sont ajoutés à $s$.</p>`,
+      correction_etapes(st) {
+        const { n } = st._v; const evens = []; for (let i = 2; i <= n; i += 2) evens.push(i); const s = evens.reduce((a, b) => a + b, 0);
+        return [
+          `La condition « si i est pair » ne garde que les nombres pairs entre 1 et $${n}$.`,
+          `Ces nombres sont : $${evens.join(', ')}$.`,
+          `On les additionne : $${evens.join(' + ')} = ${s}$. Le programme affiche $${s}$.`,
+        ];
+      },
+    },
+
+    // ----- Niveau 1 : Compléter la trace -----
+    {
+      id: 'e07', niveau: 1, type: 'complete',
+      consigne: 'Complète la trace d\'exécution :',
+      generer() {
+        const a = randInt(2, 6), b = randInt(2, 4), c = randInt(1, 9);
+        return {
+          enonce_complete: `$x \\leftarrow ${a}$ ; $\\;x \\leftarrow x \\times ${b}$ donne $x = $ {0} $;\\;$ $x \\leftarrow x + ${c}$ donne $x = $ {1}`,
+          champs: [
+            { reponse: a * b, validation: 'nombre' },
+            { reponse: a * b + c, validation: 'nombre' },
+          ],
+          _v: { a, b, c },
+        };
+      },
+      indices: ['On exécute les instructions dans l\'ordre.', 'On met à jour $x$ après chaque ligne.', 'La 2ᵉ ligne multiplie, la 3ᵉ ajoute.'],
+      correction_etapes(st) {
+        const { a, b, c } = st._v;
+        return [
+          `Au départ $x = ${a}$.`,
+          `$x \\leftarrow x \\times ${b} = ${a} \\times ${b} = ${a * b}$.`,
+          `$x \\leftarrow x + ${c} = ${a * b} + ${c} = ${a * b + c}$.`,
+        ];
+      },
+    },
+
+    // ----- Niveau 2 : Ordonner les étapes d'exécution -----
+    {
+      id: 'e08', niveau: 2, type: 'ordonner_etapes',
+      consigne: 'Remets dans l\'ordre l\'exécution de la boucle (somme 1+2+3) :',
+      generer() {
+        return {
+          etapes: [
+            `Initialiser : $s \\leftarrow 0$`,
+            `Tour $i = 1$ : $s \\leftarrow 0 + 1 = 1$`,
+            `Tour $i = 2$ : $s \\leftarrow 1 + 2 = 3$`,
+            `Tour $i = 3$ : $s \\leftarrow 3 + 3 = 6$`,
+            `Afficher le résultat : $6$`,
+          ],
+        };
+      },
+      indices: ['On initialise la variable avant la boucle.', 'On exécute les tours dans l\'ordre croissant de $i$.', 'On affiche après la boucle.'],
+      correction_detaillee: () => `<p>Ordre : initialisation → tour 1 → tour 2 → tour 3 → affichage.</p>`,
     },
   ],
 
   quiz_bilan: [
-    { type: 'saisie', question: 'Après « x ← 7 ; x ← x − 3 », que vaut x ?', reponse: 4, validation: 'nombre', explication: '$7 - 3 = 4$.' },
+    {
+      type: 'saisie', question: 'Trace un programme.',
+      generer() { const a = randInt(5, 12), b = randInt(1, 4); return { question: `Après « x ← ${a} ; x ← x − ${b} », que vaut x ?`, reponse: a - b, validation: 'nombre', explication: `$${a} - ${b} = ${a - b}$.` }; },
+    },
     { type: 'qcm', question: 'Le symbole « ← » dans un algorithme signifie :', choix: ['affecter une valeur à une variable', 'comparer', 'afficher', 'multiplier'], correct: 0, explication: '« ← » est l\'affectation : la variable reçoit la valeur.' },
     { type: 'saisie', question: 'Combien de fois s\'exécute le corps de « pour i de 1 à 5 » ?', reponse: 5, validation: 'nombre', explication: 'La boucle tourne pour i = 1, 2, 3, 4, 5 : 5 fois.' },
-    { type: 'saisie', question: '« s ← 0 ; pour i de 1 à 4 : s ← s + i ; afficher s ». Résultat ?', reponse: 10, validation: 'nombre', explication: '$1+2+3+4 = 10$.' },
+    {
+      type: 'saisie', question: 'Somme d\'une boucle.',
+      generer() { const n = randInt(3, 6); return { question: `« s ← 0 ; pour i de 1 à ${n} : s ← s + i ; afficher s ». Résultat ?`, reponse: n * (n + 1) / 2, validation: 'nombre', explication: `$1+2+\\dots+${n} = ${n * (n + 1) / 2}$.` }; },
+    },
     { type: 'vrai_faux', question: 'Dans une condition « si … sinon », les deux branches s\'exécutent toujours.', reponse: false, explication: 'Non : seule la branche correspondant au test s\'exécute.' },
   ],
 };

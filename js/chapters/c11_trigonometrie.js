@@ -22,7 +22,7 @@ function triangleSVG(host, { angle = 35, hyp = 'AB', opp = 'AC', adj = 'BC', lab
     l.setAttribute('x1', x1); l.setAttribute('y1', y1); l.setAttribute('x2', x2); l.setAttribute('y2', y2);
     l.setAttribute('stroke', c); l.setAttribute('stroke-width', '2.5'); svg.appendChild(l);
   };
-  const txt = (x, y, s, c = '#412f5b') => {
+  const txt = (x, y, s, c = 'var(--text)') => {
     const t = document.createElementNS(SVGNS, 'text');
     t.setAttribute('x', x); t.setAttribute('y', y); t.setAttribute('fill', c);
     t.setAttribute('font-size', '14'); t.setAttribute('font-weight', '600'); t.textContent = s; svg.appendChild(t);
@@ -150,10 +150,18 @@ export default {
           enonce: `Triangle rectangle. $\\widehat{B}=${ang}°$, côté opposé à $\\widehat B = ${opp}$. Calcule l'hypoténuse.`,
           reponse: round1(opp / Math.sin(deg2rad(ang))), validation: 'nombre', tolerance: 0.03,
           visuel: (c) => triangleSVG(c, { angle: ang, opp: String(opp), hyp: '?', adj: '' }),
+          _v: { ang, opp },
         };
       },
       indices: ['$\\sin\\alpha = \\dfrac{\\text{opposé}}{\\text{hyp}}$.', 'Ici l\'inconnue est au dénominateur.', 'hyp $= \\dfrac{\\text{opposé}}{\\sin\\alpha}$.'],
-      correction_detaillee: () => `<p>$\\text{hyp} = \\dfrac{\\text{opposé}}{\\sin(\\alpha)}$.</p>`,
+      correction_etapes(st) {
+        const { ang, opp } = st._v; const hyp = round1(opp / Math.sin(deg2rad(ang)));
+        return [
+          `On connaît l'opposé et on cherche l'hypoténuse → sinus (SOH).`,
+          `$\\sin(${ang}°) = \\dfrac{\\text{opposé}}{\\text{hyp}} = \\dfrac{${opp}}{\\text{hyp}}$.`,
+          `L'inconnue est au dénominateur : $\\text{hyp} = \\dfrac{${opp}}{\\sin(${ang}°)} \\approx ${hyp}$.`,
+        ];
+      },
     },
     {
       id: 'e06', niveau: 3, type: 'saisie', consigne: 'Calcule le côté opposé via la tangente (arrondi au dixième) :',
@@ -168,13 +176,64 @@ export default {
       indices: ['Opposé et adjacent → tangente.', '$\\tan\\alpha = \\dfrac{\\text{opposé}}{\\text{adjacent}}$.', 'opposé $= \\text{adjacent}\\times\\tan\\alpha$.'],
       correction_detaillee: () => `<p>opposé $= \\text{adjacent}\\times\\tan(\\alpha)$.</p>`,
     },
+
+    // ----- Niveau 1 : Compléter un calcul de côté (angle remarquable) -----
+    {
+      id: 'e07', niveau: 1, type: 'complete',
+      consigne: 'Complète le calcul (angle de 30°) :',
+      generer() {
+        const hyp = 2 * randInt(3, 8), opp = hyp * 0.5; // 30° : sin(30°) = 0,5
+        return {
+          enonce_complete: `$\\widehat{B}=30°$, hypoténuse $= ${hyp}$. $\\sin(30°) = $ {0} $\\;$ donc opposé $= ${hyp} \\times \\sin(30°) = $ {1}`,
+          champs: [
+            { reponse: 0.5, validation: 'nombre', tolerance: 0.001 },
+            { reponse: opp, validation: 'nombre' },
+          ],
+          visuel: (c) => triangleSVG(c, { angle: 30, hyp: String(hyp), opp: '?', adj: '' }),
+          _v: { hyp, opp },
+        };
+      },
+      indices: ['$\\sin(30°)$ est une valeur à connaître : $0{,}5$.', 'opposé $= \\text{hyp}\\times\\sin(\\alpha)$.', 'On multiplie l\'hypoténuse par $0{,}5$.'],
+      correction_etapes(st) {
+        const { hyp, opp } = st._v;
+        return [
+          `On utilise le sinus : $\\sin(30°) = 0{,}5$.`,
+          `opposé $= \\text{hyp}\\times\\sin(30°) = ${hyp}\\times 0{,}5 = ${opp}$.`,
+        ];
+      },
+    },
+
+    // ----- Niveau 2 : Ordonner les étapes (SOH-CAH-TOA) -----
+    {
+      id: 'e08', niveau: 2, type: 'ordonner_etapes',
+      consigne: 'Remets dans l\'ordre la résolution trigonométrique :',
+      generer() {
+        const ang = pick([25, 30, 35, 40, 50, 55]), hyp = randInt(6, 14); const opp = round1(hyp * Math.sin(deg2rad(ang)));
+        return {
+          etapes: [
+            `Repérer les côtés : on connaît l'hypoténuse, on cherche l'opposé à $\\widehat B$`,
+            `Choisir le rapport : opposé et hypoténuse → sinus (SOH)`,
+            `Écrire l'égalité : $\\sin(${ang}°) = \\dfrac{\\text{opposé}}{${hyp}}$`,
+            `Isoler et calculer : opposé $= ${hyp}\\times\\sin(${ang}°) \\approx ${opp}$`,
+          ],
+        };
+      },
+      indices: ['On repère d\'abord quels côtés sont en jeu.', 'On choisit cos, sin ou tan selon ces côtés.', 'Le calcul vient en dernier.'],
+      correction_detaillee: () => `<p>Ordre : repérer les côtés → choisir le rapport (SOH-CAH-TOA) → écrire l'égalité → calculer.</p>`,
+    },
   ],
 
   quiz_bilan: [
     { type: 'qcm', question: 'L\'hypoténuse d\'un triangle rectangle est :', choix: ["le côté face à l'angle droit", "le plus petit côté", "n'importe quel côté", "le côté adjacent"], correct: 0, explication: "L'hypoténuse est toujours le côté opposé à l'angle droit (le plus long)." },
     { type: 'qcm', question: '$\\sin\\alpha$ est égal à :', choix: ['\\dfrac{opposé}{hypoténuse}', '\\dfrac{adjacent}{hypoténuse}', '\\dfrac{opposé}{adjacent}', '\\dfrac{hypoténuse}{opposé}'], correct: 0, explication: 'SOH : Sinus = Opposé / Hypoténuse.' },
-    { type: 'saisie', question: '$\\widehat B = 30°$ et hypoténuse $= 10$. Calcule le côté opposé.', reponse: 5, validation: 'nombre', tolerance: 0.03, explication: '$10\\times\\sin(30°) = 10\\times0{,}5 = 5$.' },
+    {
+      type: 'saisie', question: 'Calcule un côté opposé.',
+      generer() { const ang = pick([20, 25, 30, 35, 40, 45, 50, 55, 60]), hyp = randInt(6, 14); return { question: `$\\widehat B = ${ang}°$ et hypoténuse $= ${hyp}$. Calcule le côté opposé (arrondi au dixième).`, reponse: round1(hyp * Math.sin(deg2rad(ang))), validation: 'nombre', tolerance: 0.05, explication: `opposé $= ${hyp}\\times\\sin(${ang}°)$.` }; },
+    },
     { type: 'vrai_faux', question: 'Pour trouver un angle connaissant opposé et adjacent, on utilise $\\tan^{-1}$.', reponse: true, explication: 'Oui : $\\widehat B = \\tan^{-1}(\\text{opp}/\\text{adj})$.' },
-    { type: 'saisie', question: '$\\cos(60°) = ?$ (valeur décimale)', reponse: 0.5, validation: 'nombre', tolerance: 0.02, explication: '$\\cos(60°) = 0{,}5$.' },
+    {
+      type: 'saisie', question: 'Valeur trigonométrique remarquable.',
+      generer() { const t = pick([['\\cos(60°)', 0.5], ['\\sin(30°)', 0.5], ['\\cos(0°)', 1], ['\\sin(90°)', 1], ['\\sin(0°)', 0], ['\\cos(90°)', 0]]); return { question: `$${t[0]} = ?$ (valeur décimale)`, reponse: t[1], validation: 'nombre', tolerance: 0.02, explication: `$${t[0]} = ${String(t[1]).replace('.', '{,}')}$.` }; },
+    },
   ],
 };

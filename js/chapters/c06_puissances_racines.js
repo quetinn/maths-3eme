@@ -89,10 +89,17 @@ export default {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Calcule (même base, additionne les exposants) :',
       generer() {
         const a = pick([2, 3]), m = randInt(2, 3), n = randInt(2, 3);
-        return { enonce: `Calcule $${a}^{${m}} \\times ${a}^{${n}}$.`, reponse: Math.pow(a, m + n), validation: 'nombre', reponseTex: `${a}^{${m + n}} = ${Math.pow(a, m + n)}` };
+        return { enonce: `Calcule $${a}^{${m}} \\times ${a}^{${n}}$.`, reponse: Math.pow(a, m + n), validation: 'nombre', reponseTex: `${a}^{${m + n}} = ${Math.pow(a, m + n)}`, _v: { a, m, n } };
       },
       indices: ['$a^m \\times a^n = a^{m+n}$.', 'Additionne les exposants.', 'Puis calcule la puissance obtenue.'],
-      correction_detaillee: (s) => `<p>$a^m \\times a^n = a^{m+n}$, puis on calcule : $${s.reponseTex}$.</p>`,
+      correction_etapes(st) {
+        const { a, m, n } = st._v;
+        return [
+          `Même base $${a}$ : on additionne les exposants $${m} + ${n} = ${m + n}$.`,
+          `Donc $${a}^{${m}} \\times ${a}^{${n}} = ${a}^{${m + n}}$.`,
+          `On calcule : $${a}^{${m + n}} = ${Math.pow(a, m + n)}$.`,
+        ];
+      },
     },
     {
       id: 'e06', niveau: 3, type: 'saisie', consigne: 'Écris ce petit nombre en notation scientifique (ex. 4.2*10^-3) :',
@@ -104,11 +111,64 @@ export default {
       indices: ['Pour un petit nombre, l\'exposant est négatif.', 'Place la virgule après le premier chiffre non nul.', 'Compte les rangs vers la droite : exposant négatif.'],
       correction_detaillee: (s) => `<p>On obtient $${s.reponseTex}$ (exposant négatif car le nombre est petit).</p>`,
     },
+
+    // ----- Niveau 1 : Compléter la notation scientifique -----
+    {
+      id: 'e07', niveau: 1, type: 'complete',
+      consigne: 'Complète la notation scientifique :',
+      generer() {
+        const mant = randInt(11, 99) / 10, exp = randInt(2, 5);
+        const value = Math.round(mant * Math.pow(10, exp));
+        return {
+          enonce_complete: `$${value}$ s'écrit : mantisse {0} $\\times 10^n$ avec $n = $ {1}`,
+          champs: [
+            { reponse: mant, validation: 'nombre', tolerance: 0.001 },
+            { reponse: exp, validation: 'nombre' },
+          ],
+          _v: { mant, exp, value },
+        };
+      },
+      indices: ['La mantisse est comprise entre 1 et 10.', 'Place la virgule après le premier chiffre.', 'L\'exposant est le nombre de rangs dont la virgule a bougé.'],
+      correction_etapes(st) {
+        const { mant, exp, value } = st._v; const m = String(mant).replace('.', '{,}');
+        return [
+          `On place la virgule après le premier chiffre : mantisse $${m}$.`,
+          `La virgule a bougé de $${exp}$ rangs : exposant $${exp}$.`,
+          `Donc $${value} = ${m} \\times 10^{${exp}}$.`,
+        ];
+      },
+    },
+
+    // ----- Niveau 2 : Ordonner les étapes -----
+    {
+      id: 'e08', niveau: 2, type: 'ordonner_etapes',
+      consigne: 'Remets dans l\'ordre l\'écriture en notation scientifique :',
+      generer() {
+        const mant = randInt(11, 99) / 10, exp = randInt(2, 5);
+        const value = Math.round(mant * Math.pow(10, exp)); const m = String(mant).replace('.', '{,}');
+        return {
+          etapes: [
+            `On part du nombre $${value}$`,
+            `On place la virgule après le premier chiffre : $${m}$`,
+            `On compte le déplacement de la virgule : $${exp}$ rangs`,
+            `On écrit : $${m} \\times 10^{${exp}}$`,
+          ],
+        };
+      },
+      indices: ['On repère d\'abord le nombre de départ.', 'On déplace la virgule après le 1er chiffre.', 'Le nombre de rangs donne l\'exposant.'],
+      correction_detaillee: () => `<p>Ordre : nombre → placer la virgule → compter les rangs → écrire $a \\times 10^n$.</p>`,
+    },
   ],
 
   quiz_bilan: [
-    { type: 'saisie', question: 'Combien vaut $2^5$ ?', reponse: 32, validation: 'nombre', explication: '$2\\times2\\times2\\times2\\times2 = 32$.' },
-    { type: 'saisie', question: 'Combien vaut $\\sqrt{81}$ ?', reponse: 9, validation: 'nombre', explication: '$9^2 = 81$.' },
+    {
+      type: 'saisie', question: 'Calcule la puissance.',
+      generer() { const a = randInt(2, 5), n = randInt(2, 4); return { question: `Combien vaut $${a}^{${n}}$ ?`, reponse: Math.pow(a, n), validation: 'nombre', explication: `$${a}^{${n}} = ${Math.pow(a, n)}$.` }; },
+    },
+    {
+      type: 'saisie', question: 'Calcule la racine carrée.',
+      generer() { const k = randInt(2, 15); return { question: `Combien vaut $\\sqrt{${k * k}}$ ?`, reponse: k, validation: 'nombre', explication: `$${k}^2 = ${k * k}$ donc $\\sqrt{${k * k}} = ${k}$.` }; },
+    },
     { type: 'qcm', question: '$10^3 \\times 10^4$ est égal à :', choix: ['10^7', '10^{12}', '10^1', '100^7'], correct: 0, explication: 'Même base : on additionne les exposants, $10^{3+4} = 10^7$.' },
     { type: 'saisie', question: 'Écris $52\\,000$ en notation scientifique (ex. 5.2*10^4).', reponse: 52000, validation: 'notation_scientifique', explication: '$52\\,000 = 5{,}2 \\times 10^4$.' },
     { type: 'vrai_faux', question: 'Le nombre $0{,}0007$ s\'écrit $7 \\times 10^{-4}$ en notation scientifique.', reponse: true, explication: 'La virgule se déplace de 4 rangs vers la droite : exposant $-4$.' },

@@ -316,3 +316,67 @@ export function mountChart(container, config) {
   container.appendChild(canvas);
   return new window.Chart(canvas, config);
 }
+
+// ---------------------------------------------------------------------
+//  Diagramme en boîte (box-plot) — médiane, quartiles, étendue
+//  Rendu en SVG (réutilise le style .svg-plot, contrasté en thème sombre).
+//  Chart.js n'a pas de box-plot natif sans plugin : le SVG est plus fiable
+//  et entièrement thémable (moustaches + boîte + médiane + graduations).
+// ---------------------------------------------------------------------
+
+/**
+ * Trace un diagramme en boîte horizontal.
+ * @param {HTMLElement} container
+ * @param {Object} stats  { min, q1, med, q3, max }
+ * @param {Object} opts   width, height, min/max (bornes de l'axe), titre
+ */
+export function mountBoxPlot(container, stats, opts = {}) {
+  const o = Object.assign({ width: 360, height: 150 }, opts);
+  const { min, q1, med, q3, max } = stats;
+  let lo = o.min != null ? o.min : min;
+  let hi = o.max != null ? o.max : max;
+  const pad = ((hi - lo) || 1) * 0.12;
+  lo -= pad; hi += pad;
+
+  const W = o.width, H = o.height, ML = 18, MR = 18;
+  const axisY = H - 26, boxTop = 38, boxBot = axisY - 16, cy = (boxTop + boxBot) / 2;
+  const X = (v) => ML + ((v - lo) / (hi - lo)) * (W - ML - MR);
+
+  container.innerHTML = '';
+  const root = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'svg-plot boxplot', role: 'img', 'aria-label': `Diagramme en boîte : minimum ${min}, premier quartile ${q1}, médiane ${med}, troisième quartile ${q3}, maximum ${max}` });
+
+  // Moustaches (min→Q1 et Q3→max)
+  root.appendChild(svg('line', { x1: X(min), y1: cy, x2: X(q1), y2: cy, class: 'bp-whisker' }));
+  root.appendChild(svg('line', { x1: X(q3), y1: cy, x2: X(max), y2: cy, class: 'bp-whisker' }));
+  // Extrémités (min, max)
+  [min, max].forEach((v) => root.appendChild(svg('line', { x1: X(v), y1: boxTop + 5, x2: X(v), y2: boxBot - 5, class: 'bp-cap' })));
+  // Boîte (Q1 → Q3)
+  root.appendChild(svg('rect', { x: X(q1), y: boxTop, width: Math.max(1, X(q3) - X(q1)), height: boxBot - boxTop, rx: 3, class: 'bp-box' }));
+  // Médiane
+  root.appendChild(svg('line', { x1: X(med), y1: boxTop, x2: X(med), y2: boxBot, class: 'bp-median' }));
+  // Axe
+  root.appendChild(svg('line', { x1: ML, y1: axisY, x2: W - MR, y2: axisY, class: 'plot-axes' }));
+
+  // Étiquettes : valeur sous l'axe, rôle au-dessus de la boîte (en évitant les doublons)
+  const seen = new Set();
+  const tick = (v, role) => {
+    const x = X(v);
+    root.appendChild(svg('line', { x1: x, y1: axisY - 3, x2: x, y2: axisY + 3, class: 'plot-axes' }));
+    const key = `${Math.round(x)}`;
+    if (!seen.has(key)) {
+      const tv = svg('text', { x, y: axisY + 15, class: 'plot-tick', 'text-anchor': 'middle' });
+      tv.textContent = (Math.round(v * 100) / 100);
+      root.appendChild(tv);
+      seen.add(key);
+    }
+    if (role) {
+      const tr = svg('text', { x, y: boxTop - 6, class: 'bp-role', 'text-anchor': 'middle' });
+      tr.textContent = role;
+      root.appendChild(tr);
+    }
+  };
+  tick(min, 'min'); tick(q1, 'Q1'); tick(med, 'Méd'); tick(q3, 'Q3'); tick(max, 'max');
+
+  container.appendChild(root);
+  return root;
+}

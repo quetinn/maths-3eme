@@ -104,18 +104,75 @@ export default {
           reponse: `(x ${pm(s)} ${a})^2`,
           reponseTex: `(x ${pm(s)} ${a})^2`,
           validation: 'factorisation',
+          _v: { a, s },
         };
       },
       indices: ['Le premier et le dernier terme sont des carrés.', 'Vérifie que le terme du milieu vaut bien $2ab$.', '$a^2 \\pm 2ab + b^2 = (a \\pm b)^2$.'],
-      correction_detaillee: () => `<p>On vérifie que le trinôme est un carré parfait : $x^2 \\pm 2bx + b^2 = (x \\pm b)^2$.</p>`,
+      correction_etapes(st) {
+        const { a, s } = st._v; const sg = pm(s);
+        return [
+          `On repère deux carrés : $x^2 = x\\times x$ et $${a * a} = ${a}^2$.`,
+          `On vérifie le double produit : $2\\times x\\times ${a} = ${2 * a}x$ (signe $${sg}$).`,
+          `C'est donc le carré parfait $(x ${sg} ${a})^2$.`,
+        ];
+      },
+    },
+
+    // ----- Niveau 1 : Compléter le développement -----
+    {
+      id: 'e07', niveau: 1, type: 'complete',
+      consigne: 'Complète le développement du carré :',
+      generer() {
+        const a = randInt(2, 9);
+        return {
+          enonce_complete: `$(x + ${a})^2 = x^2 + $ {0} $x + $ {1}`,
+          champs: [
+            { reponse: 2 * a, validation: 'nombre' },
+            { reponse: a * a, validation: 'nombre' },
+          ],
+          _v: { a },
+        };
+      },
+      indices: ['$(a+b)^2 = a^2 + 2ab + b^2$.', 'Le terme du milieu est le double produit $2\\times x\\times b$.', 'Le dernier terme est $b^2$.'],
+      correction_etapes(st) {
+        const { a } = st._v;
+        return [
+          `Double produit : $2\\times x\\times ${a} = ${2 * a}x$ → premier champ $= ${2 * a}$.`,
+          `Carré du second terme : $${a}^2 = ${a * a}$ → second champ $= ${a * a}$.`,
+        ];
+      },
+    },
+
+    // ----- Niveau 2 : Ordonner les étapes -----
+    {
+      id: 'e08', niveau: 2, type: 'ordonner_etapes',
+      consigne: 'Remets dans l\'ordre les étapes du développement :',
+      generer() {
+        const a = randInt(2, 9);
+        return {
+          etapes: [
+            `Reconnaître l'identité $(a+b)^2$ avec $a = x$ et $b = ${a}$`,
+            `Écrire la formule : $x^2 + 2\\times x\\times ${a} + ${a}^2$`,
+            `Calculer chaque terme : $x^2 + ${2 * a}x + ${a * a}$`,
+          ],
+        };
+      },
+      indices: ['On identifie toujours $a$ et $b$ en premier.', 'On applique ensuite la formule sans calculer.', 'On termine par les calculs.'],
+      correction_detaillee: () => `<p>Ordre : reconnaître l'identité → appliquer la formule → calculer.</p>`,
     },
   ],
 
   quiz_bilan: [
     { type: 'qcm', question: 'Le développement de $(a+b)^2$ est :', choix: ['a^2 + b^2', 'a^2 + 2ab + b^2', 'a^2 - 2ab + b^2', '2a + 2b'], correct: 1, explication: '$(a+b)^2 = a^2 + 2ab + b^2$.' },
-    { type: 'saisie', question: 'Développe $(x+5)^2$.', reponse: 'x^2 + 10*x + 25', validation: 'expression', explication: '$x^2 + 2\\times5x + 25 = x^2 + 10x + 25$.' },
+    {
+      type: 'saisie', question: 'Développe un carré.',
+      generer() { const a = randInt(3, 9); return { question: `Développe $(x + ${a})^2$.`, reponse: `x^2 + ${2 * a}*x + ${a * a}`, validation: 'expression', explication: `$(x+${a})^2 = x^2 + ${2 * a}x + ${a * a}$.` }; },
+    },
     { type: 'vrai_faux', question: 'A-t-on $(x-3)^2 = x^2 - 9$ ?', reponse: false, explication: 'Non : $(x-3)^2 = x^2 - 6x + 9$.' },
     { type: 'qcm', question: 'La factorisation de $x^2 - 16$ est :', choix: ['(x-4)(x+4)', '(x-4)^2', '(x-8)(x+2)', 'on ne peut pas'], correct: 0, explication: '$x^2 - 4^2 = (x-4)(x+4)$.' },
-    { type: 'saisie', question: 'Développe $(x+2)(x-2)$.', reponse: 'x^2 - 4', validation: 'expression', explication: '$(x+2)(x-2) = x^2 - 4$.' },
+    {
+      type: 'saisie', question: 'Développe une somme par une différence.',
+      generer() { const a = randInt(2, 9); return { question: `Développe $(x + ${a})(x - ${a})$.`, reponse: `x^2 - ${a * a}`, validation: 'expression', explication: `$(x+${a})(x-${a}) = x^2 - ${a * a}$.` }; },
+    },
   ],
 };

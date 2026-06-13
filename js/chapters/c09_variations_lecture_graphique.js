@@ -105,18 +105,79 @@ export default {
           enonce: `Lis $f(${x0})$ sur le graphique.`,
           reponse: (x0 - h) * (x0 - h) + k, validation: 'nombre',
           visuel: (c) => plotFunction(c, (x) => (x - h) * (x - h) + k, { xmin: h - 4, xmax: h + 4 }),
+          _v: { h, k, x0 },
         };
       },
       indices: ['Place-toi sur l\'abscisse donnée.', 'Monte jusqu\'à la courbe.', 'Lis l\'ordonnée. Tu peux toucher la courbe.'],
-      correction_detaillee: () => `<p>On lit l'ordonnée du point de la courbe situé au-dessus de $x$.</p>`,
+      correction_etapes(st) {
+        const { h, k, x0 } = st._v; const d = x0 - h;
+        const hS = h >= 0 ? `- ${h}` : `+ ${-h}`, kS = k >= 0 ? `+ ${k}` : `- ${-k}`;
+        return [
+          `On se place à l'abscisse $x = ${x0}$, puis on monte jusqu'à la courbe.`,
+          `La courbe a pour expression $(x ${hS})^2 ${kS}$ (sommet en $x = ${h}$).`,
+          `On calcule : $f(${x0}) = (${d})^2 ${kS} = ${d * d} ${kS} = ${d * d + k}$.`,
+        ];
+      },
+    },
+
+    // ----- Niveau 1 : Compléter le tableau de valeurs -----
+    {
+      id: 'e07', niveau: 1, type: 'complete',
+      consigne: 'Complète le tableau de valeurs :',
+      generer() {
+        const a = randIntNonZero(2, 4), b = randInt(-3, 3), x0 = randInt(-3, 3);
+        let x1 = randInt(-3, 3); while (x1 === x0) x1 = randInt(-3, 3);
+        const bS = b > 0 ? ` + ${b}` : b < 0 ? ` - ${-b}` : '';
+        return {
+          enonce_complete: `$f(x) = ${a}x${bS}$ : $f(${x0}) = $ {0} $\\;$ et $\\; f(${x1}) = $ {1}`,
+          champs: [
+            { reponse: a * x0 + b, validation: 'nombre' },
+            { reponse: a * x1 + b, validation: 'nombre' },
+          ],
+          _v: { a, b, x0, x1 },
+        };
+      },
+      indices: ['On remplace $x$ par chaque valeur du tableau.', 'On multiplie puis on ajoute.', 'Attention aux signes des négatifs.'],
+      correction_etapes(st) {
+        const { a, b, x0, x1 } = st._v; const bS = b > 0 ? `+ ${b}` : b < 0 ? `- ${-b}` : '';
+        return [
+          `$f(${x0}) = ${a}\\times(${x0}) ${bS} = ${a * x0 + b}$.`,
+          `$f(${x1}) = ${a}\\times(${x1}) ${bS} = ${a * x1 + b}$.`,
+        ];
+      },
+    },
+
+    // ----- Niveau 2 : Ordonner les étapes (lecture d'un minimum) -----
+    {
+      id: 'e08', niveau: 2, type: 'ordonner_etapes',
+      consigne: 'Remets dans l\'ordre la lecture d\'un minimum :',
+      generer() {
+        const h = randInt(-2, 2), k = randInt(-3, 3);
+        return {
+          etapes: [
+            `On repère le point le plus bas de la courbe`,
+            `On lit son abscisse : le minimum est atteint en $x = ${h}$`,
+            `On lit son ordonnée : la valeur minimale est $${k}$`,
+            `On conclut : le minimum vaut $${k}$, atteint en $x = ${h}$`,
+          ],
+        };
+      },
+      indices: ['On cherche d\'abord le point le plus bas.', 'L\'abscisse dit OÙ, l\'ordonnée dit COMBIEN.', 'On conclut en réunissant les deux lectures.'],
+      correction_detaillee: () => `<p>Ordre : repérer le point le plus bas → lire l'abscisse → lire l'ordonnée → conclure.</p>`,
     },
   ],
 
   quiz_bilan: [
     { type: 'qcm', question: 'Une fonction dont la courbe descend de gauche à droite est :', choix: ['croissante', 'décroissante', 'constante', 'positive'], correct: 1, explication: 'Une courbe qui descend correspond à une fonction décroissante.' },
     { type: 'qcm', question: 'Le minimum d\'une fonction est :', choix: ['la plus petite valeur atteinte', 'la plus grande valeur', 'la valeur en x=0', 'toujours 0'], correct: 0, explication: 'Le minimum est la plus petite valeur prise par $f(x)$.' },
-    { type: 'saisie', question: 'Pour $f(x) = 2x - 1$, combien vaut $f(3)$ ?', reponse: 5, validation: 'nombre', explication: '$2\\times3 - 1 = 5$.' },
+    {
+      type: 'saisie', question: 'Calcule une image.',
+      generer() { const a = randIntNonZero(2, 4), b = randIntNonZero(-5, 5), x0 = randInt(1, 5); const bS = b >= 0 ? `+ ${b}` : `- ${-b}`; return { question: `Pour $f(x) = ${a}x ${bS}$, combien vaut $f(${x0})$ ?`, reponse: a * x0 + b, validation: 'nombre', explication: `$${a}\\times ${x0} ${bS} = ${a * x0 + b}$.` }; },
+    },
     { type: 'vrai_faux', question: 'Si $f$ est croissante et $1 < 4$, alors $f(1) < f(4)$.', reponse: true, explication: 'Une fonction croissante conserve l\'ordre.' },
-    { type: 'saisie', question: 'L\'étendue d\'une fonction qui varie entre $-2$ et $7$ est… (max − min)', reponse: 9, validation: 'nombre', explication: '$7 - (-2) = 9$.' },
+    {
+      type: 'saisie', question: 'Calcule une étendue.',
+      generer() { const min = randInt(-5, 2), max = min + randInt(3, 9); return { question: `Une fonction varie entre $${min}$ et $${max}$. Quelle est son étendue ? (max − min)`, reponse: max - min, validation: 'nombre', explication: `$${max} - (${min}) = ${max - min}$.` }; },
+    },
   ],
 };

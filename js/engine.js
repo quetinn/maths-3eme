@@ -324,12 +324,62 @@ const keypadHtml = () => `<div class="keypad" data-keypad>` +
   KEYPAD.map((k) => `<button type="button" class="key" data-key="${k}">${k}</button>`).join('') + `</div>`;
 
 // Lecture à voix haute (synthèse vocale du navigateur).
-function speakEl(wrap) {
-  if (!window.speechSynthesis) return;
+// On NE lit PAS le textContent du DOM KaTeX (il duplique le MathML et se lit
+// mal). On part des chaînes sources (LaTeX) converties en français lisible,
+// ou d'un champ optionnel `texteOral` fourni par l'exercice.
+
+/** Convertit un fragment LaTeX en mots français approximatifs. */
+function mathWords(t) {
+  return String(t)
+    .replace(/\\d?frac\{([^{}]*)\}\{([^{}]*)\}/g, ' $1 sur $2 ')
+    .replace(/\\sqrt\{([^{}]*)\}/g, ' racine carrée de $1 ')
+    .replace(/\\sqrt\s*(\d+(?:[.,]\d+)?)/g, ' racine carrée de $1 ')
+    .replace(/\\widehat\{([^{}]*)\}/g, ' angle $1 ')
+    .replace(/\\overline\{([^{}]*)\}/g, ' non $1 ')
+    .replace(/\^\{?\s*2\s*\}?/g, ' au carré ')
+    .replace(/\^\{?\s*3\s*\}?/g, ' au cube ')
+    .replace(/\^\{?\s*(-?\d+)\s*\}?/g, ' puissance $1 ')
+    .replace(/\\times/g, ' fois ')
+    .replace(/\\div/g, ' divisé par ')
+    .replace(/\\pi\b/g, ' pi ')
+    .replace(/\\parallel/g, ' parallèle à ')
+    .replace(/\\(?:cos|sin|tan)\b/g, (m) => ' ' + m.slice(1) + ' ')
+    .replace(/\\[a-zA-Z]+/g, ' ')          // commandes restantes (\dfrac, \quad, \;, …)
+    .replace(/\\[^a-zA-Z]/g, ' ')          // \\, \, …
+    .replace(/[{}$]/g, ' ')
+    .replace(/\biff\b/g, ' équivaut à ')
+    .replace(/=/g, ' égale ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Convertit un texte mixte (HTML + $LaTeX$) en texte lisible à voix haute. */
+function texToSpeech(s) {
+  return String(s)
+    .replace(/\$\$?([^$]*)\$\$?/g, (m, inner) => ' ' + mathWords(inner) + ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Construit le texte oral d'un exercice (consigne + énoncé + choix). */
+function buildSpeechText(exercice, state) {
   const parts = [];
-  const c = wrap.querySelector('.ex-consigne'); if (c) parts.push(c.textContent);
-  const e = wrap.querySelector('.ex-enonce'); if (e) parts.push(e.textContent);
-  const txt = parts.join('. ').replace(/\s+/g, ' ').trim();
+  const consigne = state.consigne || exercice.consigne || '';
+  if (consigne) parts.push(texToSpeech(consigne));
+  const oral = state.texteOral || exercice.texteOral;
+  if (oral) parts.push(typeof oral === 'function' ? oral(state) : oral);
+  else if (exercice.type === 'complete') parts.push(texToSpeech(String(state.enonce_complete || state.enonce || '').replace(/\{\d+\}/g, ' (à compléter) ')));
+  else if (exercice.type === 'ordonner_etapes') parts.push('Remets ces étapes dans l\'ordre : ' + (state.etapes || []).map(texToSpeech).join(' ; '));
+  else if (state.enonce) parts.push(texToSpeech(state.enonce));
+  if (state.choix) parts.push('Réponses possibles : ' + state.choix.map((c) => texToSpeech('$' + c + '$')).join(' ; '));
+  return parts.join('. ').replace(/\s+/g, ' ').trim();
+}
+
+function speak(exercice, state) {
+  if (!window.speechSynthesis) return;
+  const txt = buildSpeechText(exercice, state);
   if (!txt) return;
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(txt);
@@ -370,8 +420,12 @@ export function mountExercise(container, exercice, hooks = {}) {
       const parts = String(state.enonce_complete || state.enonce).split(/\{(\d+)\}/);
       let html = '<div class="complete-zone">';
       parts.forEach((p, i) => {
-        if (i % 2 === 1) html += `<input type="text" class="complete-input" data-idx="${p}" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Champ ${+p + 1}">`;
-        else html += `<span class="complete-txt">${p}</span>`;
+        if (i % 2 === 1) {
+          const champ = state.champs[+p] || {};
+          const expected = String(champ.reponseTex || champ.reponse || '');
+          const size = Math.max(3, Math.min(14, expected.length + 1)); // largeur initiale adaptée
+          html += `<input type="text" class="complete-input" data-idx="${p}" size="${size}" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Champ ${+p + 1}">`;
+        } else html += `<span class="complete-txt">${p}</span>`;
       });
       html += '</div>' + keypadHtml() + `<div class="answer-row"><button class="btn btn-primary" data-act="check">Vérifier</button></div>`;
       return html;
@@ -483,7 +537,11 @@ export function mountExercise(container, exercice, hooks = {}) {
       const inputs = [...wrap.querySelectorAll('.complete-input')];
       const check = () => onResult(state.champs.every((c, i) => checkAnswer(inputs[i] ? inputs[i].value : '', c)));
       checkBtn.addEventListener('click', check);
-      inputs.forEach((inp) => inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') check(); }));
+      inputs.forEach((inp) => {
+        inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') check(); });
+        // Largeur auto-ajustée à la saisie (fallback universel à field-sizing).
+        inp.addEventListener('input', () => { inp.size = Math.max(3, Math.min(16, inp.value.length + 1)); });
+      });
     } else {
       const input = wrap.querySelector('.answer-input');
       if (input && checkBtn) {
@@ -513,8 +571,8 @@ export function mountExercise(container, exercice, hooks = {}) {
     });
 
     // Lecture à voix haute
-    const speak = wrap.querySelector('[data-act="speak"]');
-    if (speak) speak.addEventListener('click', () => speakEl(wrap));
+    const speakBtn = wrap.querySelector('[data-act="speak"]');
+    if (speakBtn) speakBtn.addEventListener('click', () => speak(exercice, state));
 
     // Correction (pas-à-pas si correction_etapes, sinon détaillée)
     wrap.querySelector('[data-act="solution"]').addEventListener('click', () => revealCorrection());

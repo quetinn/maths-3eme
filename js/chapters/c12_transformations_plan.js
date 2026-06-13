@@ -13,12 +13,12 @@ function reperePoints(host, pts) {
   const svg = document.createElementNS(SVGNS, 'svg');
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('class', 'svg-plot');
   const el = (tag, a) => { const e = document.createElementNS(SVGNS, tag); for (const k in a) e.setAttribute(k, a[k]); svg.appendChild(e); return e; };
-  for (let i = -6; i <= 6; i++) { el('line', { x1: X(i), y1: 0, x2: X(i), y2: H, stroke: '#eee' }); el('line', { x1: 0, y1: Y(i), x2: W, y2: Y(i), stroke: '#eee' }); }
-  el('line', { x1: 0, y1: c, x2: W, y2: c, stroke: '#888', 'stroke-width': 1.5 });
-  el('line', { x1: c, y1: 0, x2: c, y2: H, stroke: '#888', 'stroke-width': 1.5 });
+  for (let i = -6; i <= 6; i++) { el('line', { x1: X(i), y1: 0, x2: X(i), y2: H, stroke: 'var(--border)' }); el('line', { x1: 0, y1: Y(i), x2: W, y2: Y(i), stroke: 'var(--border)' }); }
+  el('line', { x1: 0, y1: c, x2: W, y2: c, stroke: 'var(--muted)', 'stroke-width': 1.5 });
+  el('line', { x1: c, y1: 0, x2: c, y2: H, stroke: 'var(--muted)', 'stroke-width': 1.5 });
   for (const p of pts) {
-    el('circle', { cx: X(p.x), cy: Y(p.y), r: 5, fill: p.color || '#8a6fb0' });
-    const t = el('text', { x: X(p.x) + 7, y: Y(p.y) - 7, fill: '#412f5b', 'font-size': 13, 'font-weight': 700 }); t.textContent = p.name;
+    el('circle', { cx: X(p.x), cy: Y(p.y), r: 5, fill: p.color || 'var(--t-geometrie)' });
+    const t = el('text', { x: X(p.x) + 7, y: Y(p.y) - 7, fill: 'var(--text)', 'font-size': 13, 'font-weight': 700 }); t.textContent = p.name;
   }
   host.appendChild(svg);
 }
@@ -99,10 +99,17 @@ export default {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Rotation +90° (centre O) — donne l\'ABSCISSE de l\'image :',
       generer() {
         const x = randIntNonZero(-5, 5), y = randIntNonZero(-5, 5);
-        return { enonce: `$M(${x}\\,;${y})$. Image par la rotation de centre $O$, d'angle $+90°$ : quelle est son abscisse ?`, reponse: -y, validation: 'nombre' };
+        return { enonce: `$M(${x}\\,;${y})$. Image par la rotation de centre $O$, d'angle $+90°$ : quelle est son abscisse ?`, reponse: -y, validation: 'nombre', _v: { x, y } };
       },
       indices: ["Quart de tour direct : $M(x;y) \\mapsto M'(-y;x)$.", "L'abscisse de l'image vaut $-y$.", 'Pense au sens trigonométrique (anti-horaire).'],
-      correction_detaillee: () => `<p>Rotation de $+90°$ autour de $O$ : $M'(-y\\,;x)$.</p>`,
+      correction_etapes(st) {
+        const { x, y } = st._v;
+        return [
+          `Quart de tour direct ($+90°$) autour de $O$ : $M(x;y) \\mapsto M'(-y\\,; x)$.`,
+          `L'abscisse de l'image est $-y$.`,
+          `On remplace : $-y = -(${y}) = ${-y}$.`,
+        ];
+      },
     },
     {
       id: 'e06', niveau: 3, type: 'vrai_faux', consigne: 'Vrai ou faux :',
@@ -119,13 +126,65 @@ export default {
       indices: ['Ces transformations sont des « isométries ».', 'Isométrie = conserve les distances.', 'La figure image est superposable à l\'originale.'],
       correction_detaillee: () => `<p>Translations, symétries et rotations conservent longueurs et angles : ce sont des isométries.</p>`,
     },
+
+    // ----- Niveau 1 : Compléter les coordonnées de l'image -----
+    {
+      id: 'e07', niveau: 1, type: 'complete',
+      consigne: 'Complète les coordonnées de l\'image (translation) :',
+      generer() {
+        const x = randIntNonZero(-3, 3), y = randIntNonZero(-3, 3), a = randIntNonZero(-3, 3), b = randIntNonZero(-3, 3);
+        return {
+          enonce_complete: `$M(${x}\\,;${y})$ translaté du vecteur $\\vec u(${a}\\,;${b})$ : $M'($ {0} $;$ {1} $)$`,
+          champs: [
+            { reponse: x + a, validation: 'nombre' },
+            { reponse: y + b, validation: 'nombre' },
+          ],
+          visuel: (c) => reperePoints(c, [{ x, y, name: 'M' }, { x: x + a, y: y + b, name: "M'", color: 'var(--t-donnees)' }]),
+          _v: { x, y, a, b },
+        };
+      },
+      indices: ['On ajoute le vecteur aux coordonnées.', 'Abscisse : $x + a$.', 'Ordonnée : $y + b$.'],
+      correction_etapes(st) {
+        const { x, y, a, b } = st._v;
+        return [
+          `Règle : $M'(x + a\\,;\\, y + b)$.`,
+          `Abscisse : $${x} + (${a}) = ${x + a}$.`,
+          `Ordonnée : $${y} + (${b}) = ${y + b}$.`,
+        ];
+      },
+    },
+
+    // ----- Niveau 2 : Ordonner les étapes -----
+    {
+      id: 'e08', niveau: 2, type: 'ordonner_etapes',
+      consigne: 'Remets dans l\'ordre l\'application d\'une translation :',
+      generer() {
+        const x = randIntNonZero(-4, 4), y = randIntNonZero(-4, 4), a = randIntNonZero(-4, 4), b = randIntNonZero(-4, 4);
+        return {
+          etapes: [
+            `Identifier la transformation : translation de vecteur $\\vec u(${a}\\,;${b})$`,
+            `Appliquer la règle : on ajoute le vecteur aux coordonnées de $M$`,
+            `Calculer l'abscisse : $${x} + (${a}) = ${x + a}$`,
+            `Calculer l'ordonnée : $${y} + (${b}) = ${y + b}$`,
+          ],
+        };
+      },
+      indices: ['On identifie d\'abord la transformation.', 'On applique la règle avant de calculer.', 'On traite les deux coordonnées.'],
+      correction_detaillee: () => `<p>Ordre : identifier la translation → appliquer la règle → calculer l'abscisse → calculer l'ordonnée.</p>`,
+    },
   ],
 
   quiz_bilan: [
-    { type: 'saisie', question: "$M(2;5)$ translaté du vecteur $(3;-1)$ : abscisse de $M'$ ?", reponse: 5, validation: 'nombre', explication: '$2 + 3 = 5$.' },
+    {
+      type: 'saisie', question: "Translation : abscisse de l'image.",
+      generer() { const x = randIntNonZero(-5, 5), y = randIntNonZero(-5, 5), a = randIntNonZero(-4, 4), b = randIntNonZero(-4, 4); return { question: `$M(${x};${y})$ translaté du vecteur $(${a};${b})$ : abscisse de $M'$ ?`, reponse: x + a, validation: 'nombre', explication: `$${x} + (${a}) = ${x + a}$.` }; },
+    },
     { type: 'saisie', question: 'Symétrique de $M(4;-3)$ par rapport à $O$ : son ordonnée ?', reponse: 3, validation: 'nombre', explication: "$M'(-x;-y) \\Rightarrow$ ordonnée $= -(-3) = 3$." },
     { type: 'qcm', question: "Une transformation qui conserve les longueurs s'appelle :", choix: ['une isométrie', 'une homothétie', 'une projection', 'une dilatation'], correct: 0, explication: 'Translation, symétrie et rotation sont des isométries.' },
     { type: 'vrai_faux', question: "La symétrie par rapport à l'axe des ordonnées change le signe de l'abscisse.", reponse: true, explication: "$M(x;y)\\mapsto M'(-x;y)$." },
-    { type: 'saisie', question: "Symétrique de $M(-2;6)$ par rapport à l'axe des abscisses : son ordonnée ?", reponse: -6, validation: 'nombre', explication: "$M'(x;-y) \\Rightarrow$ ordonnée $= -6$." },
+    {
+      type: 'saisie', question: "Symétrie axiale (axe des abscisses) : ordonnée de l'image.",
+      generer() { const x = randIntNonZero(-5, 5), y = randIntNonZero(-5, 5); return { question: `Symétrique de $M(${x};${y})$ par rapport à l'axe des abscisses : son ordonnée ?`, reponse: -y, validation: 'nombre', explication: `$M'(x;-y) \\Rightarrow$ ordonnée $= ${-y}$.` }; },
+    },
   ],
 };

@@ -91,10 +91,17 @@ export default {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Calcule le PGCD (nombres plus grands) :',
       generer() {
         const g = randInt(6, 15), [p, q] = coprime(3, 9);
-        return { enonce: `Quel est le PGCD de $${g * p}$ et $${g * q}$ ?`, reponse: g, validation: 'nombre' };
+        return { enonce: `Quel est le PGCD de $${g * p}$ et $${g * q}$ ?`, reponse: g, validation: 'nombre', _v: { g, p, q } };
       },
       indices: ['Décompose les deux nombres en facteurs premiers.', 'Repère les facteurs communs.', 'Le PGCD est le produit de ces facteurs communs.'],
-      correction_detaillee: () => `<p>On décompose puis on multiplie les facteurs premiers communs.</p>`,
+      correction_etapes(st) {
+        const { g, p, q } = st._v;
+        return [
+          `On met en évidence un facteur commun : $${g * p} = ${g}\\times ${p}$ et $${g * q} = ${g}\\times ${q}$.`,
+          `$${p}$ et $${q}$ n'ont plus de diviseur commun (à part 1).`,
+          `Le plus grand diviseur commun est donc $${g}$.`,
+        ];
+      },
     },
     {
       id: 'e06', niveau: 3, type: 'vrai_faux', consigne: 'Vrai ou faux :',
@@ -107,13 +114,64 @@ export default {
       indices: ['Une fraction est irréductible si PGCD = 1.', 'Cherche un diviseur commun > 1.', 'Si tu en trouves un, elle est réductible.'],
       correction_detaillee: () => `<p>On vérifie si le PGCD du numérateur et du dénominateur vaut 1.</p>`,
     },
+
+    // ----- Niveau 1 : Compléter la simplification -----
+    {
+      id: 'e07', niveau: 1, type: 'complete',
+      consigne: 'Complète la simplification (on divise par le PGCD) :',
+      generer() {
+        const g = randInt(2, 6), [p, q] = coprime(2, 9);
+        return {
+          enonce_complete: `On simplifie $\\dfrac{${g * p}}{${g * q}}$ par son PGCD $${g}$. Numérateur : {0} $\\;$ Dénominateur : {1}`,
+          champs: [
+            { reponse: p, validation: 'nombre' },
+            { reponse: q, validation: 'nombre' },
+          ],
+          _v: { g, p, q },
+        };
+      },
+      indices: ['On divise le numérateur et le dénominateur par le PGCD.', 'Numérateur divisé par le PGCD.', 'Dénominateur divisé par le PGCD.'],
+      correction_etapes(st) {
+        const { g, p, q } = st._v;
+        return [
+          `Numérateur : $${g * p} \\div ${g} = ${p}$.`,
+          `Dénominateur : $${g * q} \\div ${g} = ${q}$.`,
+          `Fraction irréductible : $\\dfrac{${p}}{${q}}$.`,
+        ];
+      },
+    },
+
+    // ----- Niveau 2 : Ordonner les étapes -----
+    {
+      id: 'e08', niveau: 2, type: 'ordonner_etapes',
+      consigne: 'Remets dans l\'ordre les étapes pour rendre la fraction irréductible :',
+      generer() {
+        const g = randInt(2, 6), [p, q] = coprime(2, 9);
+        return {
+          etapes: [
+            `On cherche le PGCD de $${g * p}$ et $${g * q}$ : c'est $${g}$`,
+            `On divise le numérateur : $${g * p} \\div ${g} = ${p}$`,
+            `On divise le dénominateur : $${g * q} \\div ${g} = ${q}$`,
+            `La fraction irréductible est $\\dfrac{${p}}{${q}}$`,
+          ],
+        };
+      },
+      indices: ['On calcule d\'abord le PGCD.', 'On divise ensuite haut et bas par ce PGCD.', 'On écrit enfin la fraction simplifiée.'],
+      correction_detaillee: () => `<p>Ordre : PGCD → diviser le numérateur → diviser le dénominateur → conclure.</p>`,
+    },
   ],
 
   quiz_bilan: [
     { type: 'vrai_faux', question: 'Le nombre $17$ est premier.', reponse: true, explication: '$17$ n\'a que $1$ et $17$ comme diviseurs.' },
     { type: 'qcm', question: 'La décomposition de $36$ en facteurs premiers est :', choix: ['2^2 \\times 3^2', '4 \\times 9', '6^2', '2 \\times 18'], correct: 0, explication: '$36 = 2\\times2\\times3\\times3 = 2^2\\times3^2$ (que des nombres premiers).' },
-    { type: 'saisie', question: 'Quel est le PGCD de $12$ et $18$ ?', reponse: 6, validation: 'nombre', explication: '$12 = 2^2\\times3$, $18 = 2\\times3^2$, communs $= 2\\times3 = 6$.' },
-    { type: 'saisie', question: 'Rends irréductible $\\dfrac{15}{20}$ (forme a/b).', reponse: 0.75, validation: 'fraction_irreductible', explication: 'PGCD $=5$ : $\\dfrac{15}{20} = \\dfrac{3}{4}$.' },
+    {
+      type: 'saisie', question: 'Calcule un PGCD.',
+      generer() { const g = randInt(2, 9), [p, q] = coprime(2, 7); return { question: `Quel est le PGCD de $${g * p}$ et $${g * q}$ ?`, reponse: g, validation: 'nombre', explication: `Facteur commun $${g}$ : le PGCD est $${g}$.` }; },
+    },
+    {
+      type: 'saisie', question: 'Rends une fraction irréductible (forme a/b).',
+      generer() { const g = randInt(2, 6), [p, q] = coprime(2, 9); return { question: `Rends irréductible $\\dfrac{${g * p}}{${g * q}}$ (forme a/b).`, reponse: p / q, validation: 'fraction_irreductible', reponseTex: `\\dfrac{${p}}{${q}}`, explication: `PGCD $${g}$ : $\\dfrac{${p}}{${q}}$.` }; },
+    },
     { type: 'vrai_faux', question: 'Le nombre $1$ est un nombre premier.', reponse: false, explication: 'Non : un premier a exactement deux diviseurs, or $1$ n\'en a qu\'un.' },
   ],
 };

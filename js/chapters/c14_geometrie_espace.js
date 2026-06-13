@@ -62,10 +62,17 @@ export default {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Volume du cône (arrondi au dixième, π ≈ 3,14) :',
       generer() {
         const r = randInt(2, 6), h = randInt(4, 12);
-        return { enonce: `Cône de rayon $r = ${r}$ cm et hauteur $h = ${h}$ cm. Volume ?`, reponse: r1((1 / 3) * Math.PI * r * r * h), validation: 'nombre', tolerance: 0.02 };
+        return { enonce: `Cône de rayon $r = ${r}$ cm et hauteur $h = ${h}$ cm. Volume ?`, reponse: r1((1 / 3) * Math.PI * r * r * h), validation: 'nombre', tolerance: 0.02, _v: { r, h } };
       },
       indices: ["$V = \\dfrac13 \\pi r^2 h$.", "Calcule $r^2$, multiplie par $h$ puis par $\\pi$.", 'Divise par 3 et arrondis.'],
-      correction_detaillee: () => `<p>$V = \\dfrac13 \\pi r^2 h$, puis on arrondit.</p>`,
+      correction_etapes(st) {
+        const { r, h } = st._v; const v = r1((1 / 3) * Math.PI * r * r * h);
+        return [
+          `Formule du cône : $V = \\dfrac13 \\pi r^2 h$.`,
+          `On calcule l'aire de base : $\\pi r^2 = \\pi \\times ${r}^2 = ${r * r}\\pi$.`,
+          `Puis $V = \\dfrac13 \\times ${r * r}\\pi \\times ${h} \\approx ${String(v).replace('.', '{,}')}$ cm³.`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'saisie', consigne: 'Volume de la boule (arrondi au dixième, π ≈ 3,14) :',
@@ -94,17 +101,74 @@ export default {
       id: 'e06', niveau: 3, type: 'saisie', consigne: 'Volume du pavé droit :',
       generer() {
         const L = randInt(3, 9), l = randInt(2, 7), h = randInt(2, 8);
-        return { enonce: `Pavé droit de dimensions $${L} \\times ${l} \\times ${h}$ cm. Volume ?`, reponse: L * l * h, validation: 'nombre' };
+        return { enonce: `Pavé droit de dimensions $${L} \\times ${l} \\times ${h}$ cm. Volume ?`, reponse: L * l * h, validation: 'nombre', _v: { L, l, h } };
       },
       indices: ['$V = L \\times \\ell \\times h$.', 'Multiplie les trois dimensions.', 'Le résultat est en cm³.'],
-      correction_detaillee: () => `<p>$V = L \\times \\ell \\times h$.</p>`,
+      correction_etapes(st) {
+        const { L, l, h } = st._v;
+        return [
+          `Formule du pavé droit : $V = L \\times \\ell \\times h$.`,
+          `On multiplie deux dimensions : $${L} \\times ${l} = ${L * l}$.`,
+          `Puis par la hauteur : $${L * l} \\times ${h} = ${L * l * h}$ cm³.`,
+        ];
+      },
+    },
+
+    // ----- Niveau 1 : Compléter le calcul du volume -----
+    {
+      id: 'e07', niveau: 1, type: 'complete',
+      consigne: 'Complète le calcul du volume de la pyramide :',
+      generer() {
+        const B = 3 * randInt(2, 8), h = randInt(2, 9);
+        return {
+          enonce_complete: `Pyramide : $B = ${B}$ cm², $h = ${h}$ cm. $V = \\dfrac{1}{3}\\times B\\times h$. Produit $B\\times h = $ {0} $,$ donc $V = $ {1}`,
+          champs: [
+            { reponse: B * h, validation: 'nombre' },
+            { reponse: B * h / 3, validation: 'nombre' },
+          ],
+          _v: { B, h },
+        };
+      },
+      indices: ['On calcule d\'abord $B \\times h$.', 'On divise ensuite par 3.', '$V = \\dfrac{1}{3} B h$.'],
+      correction_etapes(st) {
+        const { B, h } = st._v;
+        return [
+          `Produit base × hauteur : $${B} \\times ${h} = ${B * h}$.`,
+          `On divise par 3 : $V = \\dfrac{${B * h}}{3} = ${B * h / 3}$ cm³.`,
+        ];
+      },
+    },
+
+    // ----- Niveau 2 : Ordonner les étapes (volume du cône) -----
+    {
+      id: 'e08', niveau: 2, type: 'ordonner_etapes',
+      consigne: 'Remets dans l\'ordre le calcul du volume d\'un cône :',
+      generer() {
+        const r = randInt(2, 6), h = randInt(4, 12); const v = r1((1 / 3) * Math.PI * r * r * h);
+        return {
+          etapes: [
+            `Reconnaître le solide : un cône → $V = \\dfrac13 \\pi r^2 h$`,
+            `Calculer l'aire du disque de base : $\\pi r^2 = ${r * r}\\pi$`,
+            `Multiplier par la hauteur et par $\\dfrac13$ : $\\dfrac13 \\times ${r * r}\\pi \\times ${h}$`,
+            `Arrondir le résultat : $V \\approx ${String(v).replace('.', '{,}')}$ cm³`,
+          ],
+        };
+      },
+      indices: ['On choisit d\'abord la bonne formule.', 'On calcule l\'aire de base avant le reste.', 'On arrondit en dernier.'],
+      correction_detaillee: () => `<p>Ordre : formule → aire de base → multiplier par $h$ et $\\tfrac13$ → arrondir.</p>`,
     },
   ],
 
   quiz_bilan: [
     { type: 'qcm', question: 'Le volume d\'une pyramide est :', choix: ['B \\times h', '\\dfrac13 B \\times h', '\\dfrac12 B \\times h', '\\pi B h'], correct: 1, explication: '$V = \\dfrac13 \\times B \\times h$.' },
-    { type: 'saisie', question: 'Volume d\'un cube d\'arête 4 cm ?', reponse: 64, validation: 'nombre', explication: '$4^3 = 64$ cm³.' },
-    { type: 'saisie', question: 'Volume d\'une pyramide, base 12 cm², hauteur 5 cm ?', reponse: 20, validation: 'nombre', explication: '$\\dfrac13 \\times 12 \\times 5 = 20$ cm³.' },
+    {
+      type: 'saisie', question: 'Volume d\'un cube.',
+      generer() { const a = randInt(2, 9); return { question: `Volume d'un cube d'arête $${a}$ cm ?`, reponse: a * a * a, validation: 'nombre', explication: `$${a}^3 = ${a * a * a}$ cm³.` }; },
+    },
+    {
+      type: 'saisie', question: 'Volume d\'une pyramide.',
+      generer() { const B = 3 * randInt(2, 8), h = randInt(2, 9); return { question: `Volume d'une pyramide, base $${B}$ cm², hauteur $${h}$ cm ?`, reponse: B * h / 3, validation: 'nombre', explication: `$\\dfrac13 \\times ${B} \\times ${h} = ${B * h / 3}$ cm³.` }; },
+    },
     { type: 'qcm', question: 'La section d\'une sphère par un plan est toujours :', choix: ['un cercle', 'un carré', 'une ellipse', 'un point'], correct: 0, explication: 'Toute section plane d\'une sphère est un cercle.' },
     { type: 'saisie', question: 'Volume de la boule de rayon 3 cm (arrondi au dixième) ?', reponse: 113.1, validation: 'nombre', tolerance: 0.02, explication: '$\\dfrac43 \\pi \\times 27 = 36\\pi \\approx 113{,}1$ cm³.' },
   ],

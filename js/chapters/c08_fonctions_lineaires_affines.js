@@ -109,18 +109,77 @@ export default {
         return {
           enonce: `La droite passe par $A(${xA}\\,;${yA})$ et $B(${xB}\\,;${yB})$. Donne $f(x)$.`,
           reponse: `${a}*x + ${b}`, reponseTex: affTeX(a, b), validation: 'expression',
+          _v: { a, b, xA, xB, yA, yB },
         };
       },
       indices: ['Calcule d\'abord $a = \\dfrac{y_B-y_A}{x_B-x_A}$.', 'Puis $b = y_A - a\\,x_A$.', 'Écris $f(x) = ax + b$.'],
-      correction_detaillee: (s) => `<p>On trouve $a$ avec les deux points, puis $b = y_A - a x_A$.</p>`,
+      correction_etapes(st) {
+        const { a, b, xA, xB, yA, yB } = st._v;
+        return [
+          `Coefficient directeur : $a = \\dfrac{${yB} - (${yA})}{${xB} - (${xA})} = ${a}$.`,
+          `Ordonnée à l'origine : $b = ${yA} - ${a}\\times(${xA}) = ${b}$.`,
+          `Expression : $f(x) = ${affTeX(a, b)}$.`,
+        ];
+      },
+    },
+
+    // ----- Niveau 1 : Compléter le coefficient directeur -----
+    {
+      id: 'e07', niveau: 1, type: 'complete',
+      consigne: 'Complète le calcul du coefficient directeur :',
+      generer() {
+        const a = randIntNonZero(-3, 3), xA = randInt(-3, 0), xB = randInt(1, 4), b = randInt(-3, 3);
+        const yA = a * xA + b, yB = a * xB + b;
+        return {
+          enonce_complete: `Droite par $A(${xA};${yA})$ et $B(${xB};${yB})$ : $\\Delta y = $ {0} $, \\;\\Delta x = ${xB - xA}$, donc $a = $ {1}`,
+          champs: [
+            { reponse: yB - yA, validation: 'nombre' },
+            { reponse: a, validation: 'nombre' },
+          ],
+          _v: { a, xA, xB, yA, yB },
+        };
+      },
+      indices: ['$\\Delta y = y_B - y_A$.', '$\\Delta x = x_B - x_A$.', '$a = \\dfrac{\\Delta y}{\\Delta x}$.'],
+      correction_etapes(st) {
+        const { a, xA, xB, yA, yB } = st._v;
+        return [
+          `Variation verticale : $\\Delta y = ${yB} - (${yA}) = ${yB - yA}$.`,
+          `Variation horizontale : $\\Delta x = ${xB} - (${xA}) = ${xB - xA}$.`,
+          `Coefficient directeur : $a = \\dfrac{${yB - yA}}{${xB - xA}} = ${a}$.`,
+        ];
+      },
+    },
+
+    // ----- Niveau 2 : Ordonner les étapes -----
+    {
+      id: 'e08', niveau: 2, type: 'ordonner_etapes',
+      consigne: 'Remets dans l\'ordre la recherche de l\'expression $f(x)=ax+b$ :',
+      generer() {
+        const a = randIntNonZero(-3, 3), b = randInt(-4, 4);
+        return {
+          etapes: [
+            `Calculer le coefficient directeur : $a = \\dfrac{y_B - y_A}{x_B - x_A}$`,
+            `En déduire l'ordonnée à l'origine : $b = y_A - a\\,x_A$`,
+            `Écrire l'expression finale : $f(x) = ${affTeX(a, b)}$`,
+          ],
+        };
+      },
+      indices: ['On calcule la pente en premier.', 'L\'ordonnée à l\'origine se déduit ensuite.', 'On écrit $f(x)$ en dernier.'],
+      correction_detaillee: () => `<p>Ordre : coefficient directeur $a$ → ordonnée à l'origine $b$ → expression $f(x)=ax+b$.</p>`,
     },
   ],
 
   quiz_bilan: [
     { type: 'qcm', question: 'La droite d\'une fonction linéaire passe toujours par :', choix: ["l'origine du repère", "le point (0 ; 1)", "le point (1 ; 0)", "aucun point fixe"], correct: 0, explication: '$f(x)=ax$ donne $f(0)=0$ : la droite passe par l\'origine.' },
-    { type: 'saisie', question: 'Si $f(x) = 3x - 2$, combien vaut $f(0)$ ?', reponse: -2, validation: 'nombre', explication: '$f(0) = 3\\times0 - 2 = -2$ : c\'est l\'ordonnée à l\'origine.' },
+    {
+      type: 'saisie', question: 'Lis l\'ordonnée à l\'origine.',
+      generer() { const a = randIntNonZero(2, 5), b = randIntNonZero(-6, 6); return { question: `Si $f(x) = ${affTeX(a, b)}$, combien vaut $f(0)$ ?`, reponse: b, validation: 'nombre', explication: `$f(0) = ${b}$ : c'est l'ordonnée à l'origine.` }; },
+    },
     { type: 'vrai_faux', question: 'Le coefficient directeur de $y = -2x + 1$ est $1$.', reponse: false, explication: 'Non, le coefficient directeur est $-2$ (le nombre devant $x$). $1$ est l\'ordonnée à l\'origine.' },
     { type: 'qcm', question: 'Laquelle de ces fonctions est linéaire ?', choix: ['f(x) = 2x', 'f(x) = 2x + 1', 'f(x) = x - 3', 'f(x) = 5'], correct: 0, explication: 'Une fonction linéaire est de la forme $ax$ (sans terme constant).' },
-    { type: 'saisie', question: 'Pour $f(x) = ax$, on a $f(2) = 6$. Combien vaut $a$ ?', reponse: 3, validation: 'nombre', explication: '$a \\times 2 = 6$, donc $a = 3$.' },
+    {
+      type: 'saisie', question: 'Trouve le coefficient.',
+      generer() { const a = randInt(2, 6), x0 = randInt(2, 5); return { question: `Pour $f(x) = ax$, on a $f(${x0}) = ${a * x0}$. Combien vaut $a$ ?`, reponse: a, validation: 'nombre', explication: `$a \\times ${x0} = ${a * x0}$, donc $a = ${a}$.` }; },
+    },
   ],
 };

@@ -86,10 +86,18 @@ export default {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Résous (développe d\'abord) :',
       generer() {
         const a = randInt(2, 5), p = randIntNonZero(-5, 5), sol = randInt(-5, 5);
-        return { enonce: `$${a}(x ${p >= 0 ? '+ ' + p : '- ' + -p}) = ${a * (sol + p)}$`, reponse: sol, validation: 'nombre' };
+        return { enonce: `$${a}(x ${p >= 0 ? '+ ' + p : '- ' + -p}) = ${a * (sol + p)}$`, reponse: sol, validation: 'nombre', _v: { a, p, sol } };
       },
       indices: ['Développe : $a(x+p) = ax + ap$.', 'Puis résous l\'équation du premier degré obtenue.', 'Tu peux aussi diviser directement les deux côtés par $a$.'],
-      correction_detaillee: () => `<p>On développe le membre de gauche, puis on isole $x$.</p>`,
+      correction_etapes(st) {
+        const { a, p, sol } = st._v; const c = a * (sol + p), ap = a * p;
+        const apTex = ap >= 0 ? `+ ${ap}` : `- ${-ap}`;
+        return [
+          `On développe la parenthèse : $${a}x ${apTex} = ${c}$.`,
+          `On isole le terme en $x$ : $${a}x = ${c - ap}$.`,
+          `On divise par $${a}$ : $x = ${sol}$.`,
+        ];
+      },
     },
     {
       id: 'e06', niveau: 3, type: 'saisie', consigne: 'Résous (parenthèses + inconnue des deux côtés) :',
@@ -102,13 +110,63 @@ export default {
       indices: ['Développe la parenthèse.', 'Regroupe les $x$ d\'un côté.', 'Isole et divise.'],
       correction_detaillee: () => `<p>On développe, on regroupe les $x$, puis on isole $x$.</p>`,
     },
+
+    // ----- Niveau 1 : Compléter la résolution -----
+    {
+      id: 'e07', niveau: 1, type: 'complete',
+      consigne: 'Complète les étapes de résolution :',
+      generer() {
+        const a = randInt(2, 6), sol = randInt(2, 9), b = randInt(1, 9), c = a * sol + b;
+        return {
+          enonce_complete: `$${a}x + ${b} = ${c}$ donc $${a}x = $ {0} $,$ donc $x = $ {1}`,
+          champs: [
+            { reponse: a * sol, validation: 'nombre' },
+            { reponse: sol, validation: 'nombre' },
+          ],
+          _v: { a, b, c, sol },
+        };
+      },
+      indices: ['On retire d\'abord le nombre des deux côtés.', `Premier champ : la valeur de $ax$ après avoir retiré $b$.`, 'Second champ : on divise par le coefficient de $x$.'],
+      correction_etapes(st) {
+        const { a, b, c, sol } = st._v;
+        return [
+          `On soustrait $${b}$ des deux côtés : $${a}x = ${c} - ${b} = ${c - b}$.`,
+          `On divise par $${a}$ : $x = \\dfrac{${c - b}}{${a}} = ${sol}$.`,
+        ];
+      },
+    },
+
+    // ----- Niveau 2 : Ordonner les étapes -----
+    {
+      id: 'e08', niveau: 2, type: 'ordonner_etapes',
+      consigne: 'Remets dans l\'ordre la résolution :',
+      generer() {
+        const a = randInt(2, 6), sol = randInt(2, 9), b = randInt(2, 9), c = a * sol + b;
+        return {
+          etapes: [
+            `On part de $${a}x + ${b} = ${c}$`,
+            `On soustrait $${b}$ des deux côtés : $${a}x = ${c - b}$`,
+            `On divise par $${a}$ : $x = ${sol}$`,
+            `Vérification : $${a}\\times ${sol} + ${b} = ${c}$ ✓`,
+          ],
+        };
+      },
+      indices: ['On isole d\'abord le terme en $x$.', 'On divise seulement à la fin.', 'La vérification se fait en tout dernier.'],
+      correction_detaillee: () => `<p>Ordre : équation de départ → retirer le nombre → diviser → vérifier.</p>`,
+    },
   ],
 
   quiz_bilan: [
     { type: 'saisie', question: 'Résous $x - 4 = 9$.', reponse: 13, validation: 'nombre', explication: '$x = 9 + 4 = 13$.' },
     { type: 'saisie', question: 'Résous $5x = 35$.', reponse: 7, validation: 'nombre', explication: '$x = 35 \\div 5 = 7$.' },
-    { type: 'saisie', question: 'Résous $2x + 3 = 11$.', reponse: 4, validation: 'nombre', explication: '$2x = 8$ donc $x = 4$.' },
+    {
+      type: 'saisie', question: 'Résous l\'équation.',
+      generer() { const a = randInt(2, 6), sol = randInt(1, 9), b = randInt(1, 9); return { question: `Résous $${a}x + ${b} = ${a * sol + b}$.`, reponse: sol, validation: 'nombre', explication: `$${a}x = ${a * sol}$ donc $x = ${sol}$.` }; },
+    },
     { type: 'vrai_faux', question: 'Pour résoudre $-3x = 12$, on divise par $-3$ et on trouve $x = -4$.', reponse: true, explication: '$x = 12 \\div (-3) = -4$.' },
-    { type: 'saisie', question: 'Résous $4x - 1 = 2x + 7$.', reponse: 4, validation: 'nombre', explication: '$2x = 8$ donc $x = 4$.' },
+    {
+      type: 'saisie', question: 'Résous (inconnue des deux côtés).',
+      generer() { const a = randInt(3, 6), c = randInt(1, a - 1), sol = randInt(1, 7), b = randInt(1, 6); const d = (a - c) * sol + b; return { question: `Résous $${a}x + ${b} = ${c}x + ${d}$.`, reponse: sol, validation: 'nombre', explication: `On regroupe : $${a - c}x = ${d - b}$ donc $x = ${sol}$.` }; },
+    },
   ],
 };

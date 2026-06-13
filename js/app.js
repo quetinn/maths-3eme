@@ -50,6 +50,17 @@ const chapterById = (id) => CHAPTERS.find((c) => c.id === id);
 const themeById = (id) => THEMES.find((t) => t.id === id);
 const ymd = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+// Cache des modules de chapitre importés (évite de ré-importer les 17 modules
+// à chaque lancement d'examen / fiche / page chapitre).
+const _moduleCache = new Map();
+async function loadChapter(meta) {
+  if (!meta || !meta.module) return null;
+  if (_moduleCache.has(meta.id)) return _moduleCache.get(meta.id);
+  const mod = (await import(meta.module)).default;
+  _moduleCache.set(meta.id, mod);
+  return mod;
+}
+
 // ---------------------------------------------------------------------
 //  Store localStorage (v2, migration douce depuis v1)
 // ---------------------------------------------------------------------
@@ -74,6 +85,7 @@ const Store = {
     this.data.settings = Object.assign({ theme: 'auto', font: 'normal' }, this.data.settings || {});
     this.data.history = this.data.history || [];
     this.data.achievements = this.data.achievements || {};
+    this.data.daily = this.data.daily || { d: null, count: 0 };
     return this;
   },
   save() {
@@ -103,6 +115,19 @@ const Store = {
     else h.push({ d: today, xp: this.data.xp });
     if (h.length > 90) h.splice(0, h.length - 90);
   },
+
+  // — Compteur d'exercices réussis dans la journée (objectif quotidien + succès) —
+  bumpDaily() {
+    const today = ymd();
+    if (!this.data.daily || this.data.daily.d !== today) this.data.daily = { d: today, count: 0 };
+    this.data.daily.count++;
+    this.save();
+  },
+  exercisesToday() {
+    const today = ymd();
+    return (this.data.daily && this.data.daily.d === today) ? this.data.daily.count : 0;
+  },
+  markExamPassed() { if (!this.data.examPassed) { this.data.examPassed = true; this.save(); } },
 
   addXP(n, chId) {
     this.data.xp += n;
@@ -208,7 +233,8 @@ const Store = {
   },
   reset() {
     this.data = { version: 2, xp: 0, badges: {}, chapters: {}, last: null,
-      streak: { count: 0, lastDay: null }, settings: this.data.settings, history: [], achievements: {} };
+      streak: { count: 0, lastDay: null }, settings: this.data.settings, history: [], achievements: {},
+      daily: { d: null, count: 0 }, examPassed: false };
     this.save();
   },
 };
@@ -218,14 +244,18 @@ const Store = {
 // ---------------------------------------------------------------------
 
 const WEEKLY_GOAL = 100; // XP visés par semaine
+const DAILY_GOAL = 5;    // exercices réussis visés par jour
 
 const ACHIEVEMENTS = [
   { id: 'first',   icone: '🎯', label: 'Premier pas',       cond: () => Store.data.xp > 0 },
   { id: 'xp100',   icone: '⭐', label: '100 XP',            cond: () => Store.data.xp >= 100 },
   { id: 'xp500',   icone: '🌟', label: '500 XP',            cond: () => Store.data.xp >= 500 },
+  { id: 'xp1000',  icone: '💎', label: '1000 XP',           cond: () => Store.data.xp >= 1000 },
   { id: 'streak3', icone: '🔥', label: '3 jours d\'affilée', cond: () => Store.data.streak.count >= 3 },
   { id: 'streak7', icone: '🔥', label: 'Une semaine !',     cond: () => Store.data.streak.count >= 7 },
+  { id: 'daily10', icone: '⚡', label: '10 exercices en un jour', cond: () => Store.exercisesToday() >= 10 },
   { id: 'chap1',   icone: '🏅', label: '1er chapitre validé', cond: () => Object.keys(Store.data.badges).length >= 1 },
+  { id: 'exam',    icone: '🎓', label: 'Examen blanc réussi', cond: () => !!Store.data.examPassed },
   { id: 'theme',   icone: '📗', label: 'Un thème complété',  cond: () => THEMES.some((t) => Store.themeProgress(t.id).pct === 100) },
   { id: 'half',    icone: '🏆', label: 'À mi-chemin (9 ch.)', cond: () => Store.globalProgress().done >= 9 },
   { id: 'all',     icone: '👑', label: 'Brevet en poche !',  cond: () => Store.globalProgress().done >= CHAPTERS.length },
@@ -264,39 +294,62 @@ if (window.matchMedia) {
   });
 }
 
+let _settingsReturnFocus = null;
+
+function closeSettings() {
+  const modal = document.getElementById('settings-modal');
+  if (modal) modal.classList.remove('open');
+  if (_settingsReturnFocus && typeof _settingsReturnFocus.focus === 'function') _settingsReturnFocus.focus();
+  _settingsReturnFocus = null;
+}
+
 function openSettings() {
   let modal = document.getElementById('settings-modal');
-  if (modal) { modal.classList.add('open'); return; }
-  modal = document.createElement('div');
-  modal.id = 'settings-modal';
-  modal.className = 'modal open';
   const s = Store.data.settings;
-  modal.innerHTML = `
-    <div class="modal-card" role="dialog" aria-label="Réglages">
-      <div class="modal-head"><h2>⚙️ Réglages</h2><button class="modal-close" aria-label="Fermer">✕</button></div>
-      <fieldset class="setting-group">
-        <legend>Thème</legend>
-        <label><input type="radio" name="theme" value="auto"> Automatique</label>
-        <label><input type="radio" name="theme" value="light"> Clair ☀️</label>
-        <label><input type="radio" name="theme" value="dark"> Sombre 🌙</label>
-      </fieldset>
-      <fieldset class="setting-group">
-        <legend>Lecture</legend>
-        <label><input type="radio" name="font" value="normal"> Police normale</label>
-        <label><input type="radio" name="font" value="large"> Grande police 🔍</label>
-        <label><input type="radio" name="font" value="dys"> Lecture facilitée</label>
-      </fieldset>
-      <a class="btn btn-ghost" href="#/tableau" data-close>📊 Tableau de bord & sauvegarde</a>
-    </div>`;
-  document.body.appendChild(modal);
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'settings-modal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div class="modal-head"><h2 id="settings-title">⚙️ Réglages</h2><button class="modal-close" aria-label="Fermer les réglages">✕</button></div>
+        <fieldset class="setting-group">
+          <legend>Thème</legend>
+          <label><input type="radio" name="theme" value="auto"> Automatique</label>
+          <label><input type="radio" name="theme" value="light"> Clair ☀️</label>
+          <label><input type="radio" name="theme" value="dark"> Sombre 🌙</label>
+        </fieldset>
+        <fieldset class="setting-group">
+          <legend>Lecture</legend>
+          <label><input type="radio" name="font" value="normal"> Police normale</label>
+          <label><input type="radio" name="font" value="large"> Grande police 🔍</label>
+          <label><input type="radio" name="font" value="dys"> Lecture facilitée</label>
+        </fieldset>
+        <a class="btn btn-ghost" href="#/tableau" data-close>📊 Tableau de bord & sauvegarde</a>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('.modal-close').addEventListener('click', closeSettings);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeSettings(); });
+    modal.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', closeSettings));
+    modal.querySelectorAll('input[name="theme"]').forEach((r) => r.addEventListener('change', () => { s.theme = r.value; Store.save(); applySettings(); }));
+    modal.querySelectorAll('input[name="font"]').forEach((r) => r.addEventListener('change', () => { s.font = r.value; Store.save(); applySettings(); }));
+    // Accessibilité : Échap pour fermer + piège de focus (Tab boucle dans la modale).
+    modal.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); closeSettings(); return; }
+      if (e.key !== 'Tab') return;
+      const focusables = [...modal.querySelectorAll('button, [href], input')].filter((el) => !el.disabled && el.offsetParent !== null);
+      if (!focusables.length) return;
+      const first = focusables[0], last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+  }
+  // (Ré)synchronise l'état des champs, mémorise le focus de départ, puis ouvre.
   modal.querySelector(`input[name="theme"][value="${s.theme}"]`).checked = true;
   modal.querySelector(`input[name="font"][value="${s.font}"]`).checked = true;
-  const close = () => modal.classList.remove('open');
-  modal.querySelector('.modal-close').addEventListener('click', close);
-  modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
-  modal.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', close));
-  modal.querySelectorAll('input[name="theme"]').forEach((r) => r.addEventListener('change', () => { s.theme = r.value; Store.save(); applySettings(); }));
-  modal.querySelectorAll('input[name="font"]').forEach((r) => r.addEventListener('change', () => { s.font = r.value; Store.save(); applySettings(); }));
+  _settingsReturnFocus = document.activeElement;
+  modal.classList.add('open');
+  modal.querySelector('.modal-close').focus();
 }
 
 // ---------------------------------------------------------------------
@@ -426,6 +479,11 @@ function renderHome() {
           ${streak > 1 ? `<span>🔥 <strong>${streak}</strong> jours d'affilée</span>` : ''}
         </div>
       </div>
+      <div class="weekly-goal" title="Objectif du jour">
+        <span>📅 Objectif du jour</span>
+        <span class="mini-bar"><span style="width:${Math.min(100, Math.round(Store.exercisesToday() / DAILY_GOAL * 100))}%"></span></span>
+        <span class="mini-prog-txt">${Store.exercisesToday()}/${DAILY_GOAL} exos</span>
+      </div>
       <div class="weekly-goal" title="Objectif de la semaine">
         <span>🎯 Objectif de la semaine</span>
         <span class="mini-bar"><span style="width:${Math.min(100, Math.round(Store.weeklyXP() / WEEKLY_GOAL * 100))}%"></span></span>
@@ -516,7 +574,7 @@ async function renderChapter(id) {
   }
 
   let chap;
-  try { chap = (await import(meta.module)).default; }
+  try { chap = await loadChapter(meta); }
   catch (e) { console.error(e); root.innerHTML = `<p class="notice">Erreur de chargement. <a href="#/">Retour</a></p>`; return; }
 
   Store.setLast(id);
@@ -593,7 +651,7 @@ function buildChapterPage(root, meta, chap) {
     const exos = (chap.exercices || []).filter((e) => e.niveau === n);
     if (!exos.length) { exoHost.innerHTML = '<p class="muted">Aucun exercice à ce niveau.</p>'; return; }
     exos.forEach((ex) => mountExercise(exoHost, ex, {
-      onCorrect: (xp) => { Store.addXP(xp, meta.id); onLevelCorrect(); },
+      onCorrect: (xp) => { Store.bumpDaily(); Store.addXP(xp, meta.id); onLevelCorrect(); },
       onAttempt: (exId, ok) => { Store.recordAttempt(meta.id, exId, ok); if (!ok) sessionStreak = 0; },
     }));
   }
@@ -831,7 +889,7 @@ async function renderRevision(id) {
   root.setAttribute('data-theme', meta.theme);
   root.innerHTML = `<p class="loading">Préparation de la fiche…</p>`;
   let chap;
-  try { chap = (await import(meta.module)).default; } catch (e) { root.innerHTML = `<p class="notice">Erreur. <a href="#/">Retour</a></p>`; return; }
+  try { chap = await loadChapter(meta); } catch (e) { root.innerHTML = `<p class="notice">Erreur. <a href="#/">Retour</a></p>`; return; }
 
   const cours = (chap.cours || []).filter((b) => b.type !== 'figure').map(renderCoursBloc);
   const methode = (chap.methode || []).map((e, i) => `<li><strong>${e.titre}</strong> — ${e.explication}</li>`).join('');
@@ -908,7 +966,7 @@ function renderFiche() {
     const meta = chapterById(id);
     sheet.innerHTML = '<p class="loading">Génération…</p>';
     let chap;
-    try { chap = (await import(meta.module)).default; } catch (e) { sheet.innerHTML = '<p class="notice">Erreur.</p>'; return; }
+    try { chap = await loadChapter(meta); } catch (e) { sheet.innerHTML = '<p class="notice">Erreur.</p>'; return; }
     const pool = (chap.exercices || []).filter((e) => e.niveau === lvl);
     if (!pool.length) { sheet.innerHTML = '<p class="muted">Aucun exercice à ce niveau.</p>'; return; }
     const items = [];
@@ -950,6 +1008,7 @@ async function renderExamen() {
       <section class="chapter-section">
         <div class="exam-choices">
           <button class="btn btn-primary" data-scope="all">🎓 Tout le programme</button>
+          ${Store.weakChapters().length ? '<button class="btn btn-primary btn-review" data-scope="review">🎯 Réviser mes erreurs</button>' : ''}
           ${THEMES.map((t) => `<button class="btn btn-ghost" data-scope="${t.id}">${t.icone} ${t.label}</button>`).join('')}
         </div>
       </section>`;
@@ -959,10 +1018,26 @@ async function renderExamen() {
   }
 
   root.innerHTML = `<p class="loading">Préparation de l'examen…</p>`;
-  const list = CHAPTERS.filter((c) => c.module && (scope === 'all' || c.theme === scope));
+
+  // Sélection des chapitres : par thème, tout le programme, ou « réviser mes erreurs ».
+  let list, reviewNote = '';
+  if (scope === 'review') {
+    const weak = Store.weakChapters().map((w) => w.c).filter((c) => c.module);
+    list = weak.length ? weak : CHAPTERS.filter((c) => c.module);
+    reviewNote = weak.length ? '🎯 Révision ciblée sur tes chapitres à retravailler.' : '';
+  } else {
+    list = CHAPTERS.filter((c) => c.module && (scope === 'all' || c.theme === scope));
+  }
   const questions = [];
   for (const c of list) {
-    try { const mod = (await import(c.module)).default; (mod.quiz_bilan || []).forEach((q) => questions.push(q)); } catch (e) { /* ignore */ }
+    try { const mod = await loadChapter(c); (mod.quiz_bilan || []).forEach((q) => questions.push(q)); } catch (e) { /* ignore */ }
+  }
+  // En mode révision, complète avec d'autres chapitres si le vivier est trop maigre.
+  if (scope === 'review' && questions.length < 8) {
+    for (const c of CHAPTERS.filter((c) => c.module && !list.includes(c))) {
+      try { const mod = await loadChapter(c); (mod.quiz_bilan || []).forEach((q) => questions.push(q)); } catch (e) { /* ignore */ }
+      if (questions.length >= 12) break;
+    }
   }
   for (let i = questions.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [questions[i], questions[j]] = [questions[j], questions[i]]; }
   const N = Math.min(10, questions.length);
@@ -971,6 +1046,7 @@ async function renderExamen() {
   root.innerHTML = `
     <button class="btn btn-ghost btn-back" data-back>← Quitter</button>
     <header class="exam-hero"><h1>📝 Examen blanc</h1><span class="exam-timer" data-timer>00:00</span></header>
+    ${reviewNote ? `<p class="muted">${reviewNote}</p>` : ''}
     <div class="quiz-host"></div>`;
   root.querySelector('[data-back]').addEventListener('click', () => { if (examTimer) clearInterval(examTimer); navigate('#/'); });
 
@@ -982,6 +1058,7 @@ async function renderExamen() {
     onComplete: (s, t) => {
       if (examTimer) { clearInterval(examTimer); examTimer = null; }
       const passed = t > 0 && s / t >= 0.8;
+      if (passed) Store.markExamPassed();      // débloque le succès « Examen blanc réussi »
       Store.addXP(s * 10 + (passed ? 50 : 0)); // identique à l'XP affichée par le quiz
       const note = root.querySelector('.quiz-result');
       if (note) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = `Temps : ${tEl.textContent}`; note.appendChild(p); }

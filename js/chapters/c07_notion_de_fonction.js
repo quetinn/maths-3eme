@@ -104,10 +104,17 @@ export default {
       generer() {
         const a = randIntNonZero(2, 4), x1 = randInt(-4, 4), b = randInt(-5, 5);
         const k = a * x1 + b;
-        return { enonce: `$f(x) = ${affTeX(a, b)}$. &nbsp; Quel est l'antécédent de $${k}$ ? (résous $f(x) = ${k}$)`, reponse: x1, validation: 'nombre' };
+        return { enonce: `$f(x) = ${affTeX(a, b)}$. &nbsp; Quel est l'antécédent de $${k}$ ? (résous $f(x) = ${k}$)`, reponse: x1, validation: 'nombre', _v: { a, b, x1, k } };
       },
       indices: ['Écris l\'équation $f(x) = $ valeur.', 'Isole le terme en $x$ en passant le nombre de l\'autre côté.', 'Divise par le coefficient de $x$.'],
-      correction_detaillee: (s) => `<p>On résout $ax+b = k$ : $ax = k-b$ puis $x = \\dfrac{k-b}{a}$.</p>`,
+      correction_etapes(st) {
+        const { a, b, x1, k } = st._v; const bTex = b >= 0 ? `+ ${b}` : `- ${-b}`;
+        return [
+          `On résout l'équation $${a}x ${bTex} = ${k}$.`,
+          `On isole le terme en $x$ : $${a}x = ${k - b}$.`,
+          `On divise par $${a}$ : $x = ${x1}$. L'antécédent est $${x1}$.`,
+        ];
+      },
     },
     {
       id: 'e06', niveau: 3, type: 'saisie', consigne: 'Calcule l\'image (fonction non affine) :',
@@ -123,13 +130,64 @@ export default {
       indices: ['$x^2$ veut dire $x\\times x$.', 'Le carré d\'un nombre négatif est positif.', 'Calcule $x^2$ d\'abord, puis ajoute la constante.'],
       correction_detaillee: () => `<p>On calcule $x^2$ (toujours positif) puis on ajoute la constante.</p>`,
     },
+
+    // ----- Niveau 1 : Compléter le calcul d'une image -----
+    {
+      id: 'e07', niveau: 1, type: 'complete',
+      consigne: 'Complète le calcul de l\'image :',
+      generer() {
+        const a = randInt(2, 5), b = randInt(1, 9), x0 = randInt(2, 6);
+        return {
+          enonce_complete: `$f(x) = ${a}x + ${b}$ : $f(${x0}) = ${a}\\times ${x0} + ${b}$. Produit $${a}\\times ${x0} = $ {0} $,$ donc $f(${x0}) = $ {1}`,
+          champs: [
+            { reponse: a * x0, validation: 'nombre' },
+            { reponse: a * x0 + b, validation: 'nombre' },
+          ],
+          _v: { a, b, x0 },
+        };
+      },
+      indices: ['On remplace $x$ par la valeur donnée.', 'On calcule d\'abord le produit.', 'On ajoute ensuite la constante.'],
+      correction_etapes(st) {
+        const { a, b, x0 } = st._v;
+        return [
+          `On remplace $x$ par $${x0}$ : $f(${x0}) = ${a}\\times ${x0} + ${b}$.`,
+          `Produit : $${a}\\times ${x0} = ${a * x0}$.`,
+          `On ajoute : $${a * x0} + ${b} = ${a * x0 + b}$.`,
+        ];
+      },
+    },
+
+    // ----- Niveau 2 : Ordonner les étapes (antécédent) -----
+    {
+      id: 'e08', niveau: 2, type: 'ordonner_etapes',
+      consigne: 'Remets dans l\'ordre la recherche d\'un antécédent :',
+      generer() {
+        const a = randInt(2, 4), x1 = randInt(1, 6), b = randInt(1, 6); const k = a * x1 + b;
+        return {
+          etapes: [
+            `On cherche l'antécédent de $${k}$ : on résout $${a}x + ${b} = ${k}$`,
+            `On retire $${b}$ des deux côtés : $${a}x = ${k - b}$`,
+            `On divise par $${a}$ : $x = ${x1}$`,
+            `L'antécédent de $${k}$ est $${x1}$`,
+          ],
+        };
+      },
+      indices: ['On pose l\'équation $f(x) = $ valeur.', 'On isole le terme en $x$.', 'On divise en dernier.'],
+      correction_detaillee: () => `<p>Ordre : poser l'équation → isoler $ax$ → diviser → conclure.</p>`,
+    },
   ],
 
   quiz_bilan: [
     { type: 'qcm', question: '$f(3) = 7$ signifie que :', choix: ["l'image de 3 est 7", "l'antécédent de 3 est 7", "3 est l'image de 7", "f vaut 3"], correct: 0, explication: "Le nombre entre parenthèses (3) est l'antécédent ; le résultat (7) est l'image." },
-    { type: 'saisie', question: 'Si $f(x) = 2x + 1$, combien vaut $f(4)$ ?', reponse: 9, validation: 'nombre', explication: '$2\\times4 + 1 = 9$.' },
+    {
+      type: 'saisie', question: 'Calcule une image.',
+      generer() { const a = randInt(2, 5), b = randInt(1, 6), x0 = randInt(2, 6); return { question: `Si $f(x) = ${a}x + ${b}$, combien vaut $f(${x0})$ ?`, reponse: a * x0 + b, validation: 'nombre', explication: `$${a}\\times ${x0} + ${b} = ${a * x0 + b}$.` }; },
+    },
     { type: 'vrai_faux', question: 'Un nombre peut avoir plusieurs images par une fonction.', reponse: false, explication: 'Non : chaque entrée a une seule image. (Mais un nombre peut avoir plusieurs antécédents.)' },
     { type: 'qcm', question: 'Sur un graphique, l\'image d\'un nombre se lit sur :', choix: ["l'axe vertical (ordonnées)", "l'axe horizontal (abscisses)", "la première bissectrice", "n'importe où"], correct: 0, explication: "L'image est une ordonnée : elle se lit sur l'axe vertical." },
-    { type: 'saisie', question: 'Si $f(x) = 3x$, quel est l\'antécédent de $12$ ?', reponse: 4, validation: 'nombre', explication: 'On résout $3x = 12$, donc $x = 4$.' },
+    {
+      type: 'saisie', question: 'Trouve un antécédent.',
+      generer() { const a = randInt(2, 5), x1 = randInt(2, 6); return { question: `Si $f(x) = ${a}x$, quel est l'antécédent de $${a * x1}$ ?`, reponse: x1, validation: 'nombre', explication: `On résout $${a}x = ${a * x1}$, donc $x = ${x1}$.` }; },
+    },
   ],
 };
