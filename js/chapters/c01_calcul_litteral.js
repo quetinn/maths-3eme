@@ -303,6 +303,59 @@ export default {
           <p>$${a}x^2 + ${b}x = ${g}x\\times ${a / g}x + ${g}x\\times ${b / g} = ${g}x(${a / g}x + ${b / g})$.</p>`;
       },
     },
+
+    // ----- Niveau 2 : Ordonner les étapes -----
+    {
+      id: 'e07', niveau: 2, type: 'ordonner_etapes',
+      consigne: 'Remets dans l\'ordre les étapes du développement de $(2x+3)(x-1)$ :',
+      generer() {
+        return {
+          etapes: [
+            'Appliquer la double distributivité',
+            'Calculer chaque produit : $2x^2 - 2x + 3x - 3$',
+            'Réduire les termes en $x$ : $-2x + 3x = x$',
+            'Écrire le résultat : $2x^2 + x - 3$',
+          ],
+        };
+      },
+      indices: [
+        'On commence toujours par appliquer la règle de distributivité.',
+        'On calcule les produits avant de réduire.',
+        'On réduit, puis on écrit le résultat final ordonné.',
+      ],
+      correction_detaillee: () =>
+        `<p>Ordre correct : distributivité → calcul des produits → réduction → résultat.</p>`,
+    },
+
+    // ----- Niveau 1 : Compléter le calcul -----
+    {
+      id: 'e08', niveau: 1, type: 'complete',
+      consigne: 'Complète le développement :',
+      generer() {
+        const k = randInt(2, 6), a = randInt(1, 6);
+        return {
+          enonce_complete: `$${k}(x + ${a}) = $ {0} $x +$ {1}`,
+          champs: [
+            { reponse: k, validation: 'nombre' },
+            { reponse: k * a, validation: 'nombre' },
+          ],
+          _v: { k, a },
+        };
+      },
+      indices: [
+        'Distribue le nombre devant la parenthèse sur chaque terme.',
+        'Le coefficient de $x$ est le nombre de devant.',
+        'Le terme constant est ce nombre multiplié par la constante de la parenthèse.',
+      ],
+      correction_etapes(s) {
+        const { k, a } = s._v;
+        return [
+          `On distribue $${k}$ sur les deux termes de la parenthèse.`,
+          `$${k}\\times x = ${k}x$ → le premier champ vaut $${k}$.`,
+          `$${k}\\times ${a} = ${k * a}$ → le second champ vaut $${k * a}$.`,
+        ];
+      },
+    },
   ],
 
   // -------------------------------------------------------------------

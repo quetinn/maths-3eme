@@ -426,6 +426,73 @@ em { font-style: italic; color: inherit; }
 /* --- Confettis --- */
 .confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 300; }
 
+/* --- Clavier mathématique --- */
+.keypad { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }
+.key { min-width: 38px; min-height: 38px; border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; font: inherit; font-size: 1.05rem; cursor: pointer; color: var(--text); }
+.key:active { transform: scale(0.92); background: var(--accent-soft); }
+
+/* --- Type "ordonner les étapes" --- */
+.ordonner { list-style: none; margin: 0.3rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.ord-item { display: flex; align-items: center; gap: 0.5rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem 0.7rem; }
+.ord-text { flex: 1; }
+.ord-btns { display: flex; flex-direction: column; gap: 0.15rem; }
+.ord-move { width: 30px; height: 24px; border: 1px solid var(--border); background: var(--surface); border-radius: 6px; cursor: pointer; font-size: 0.7rem; color: var(--text); }
+.ord-move:disabled { opacity: 0.3; cursor: default; }
+
+/* --- Type "complète le calcul" --- */
+.complete-zone { font-size: 1.15rem; line-height: 2.1; }
+.complete-txt { white-space: normal; }
+.complete-input { width: 64px; min-height: 40px; padding: 0.3rem 0.4rem; margin: 0 0.2rem; font: inherit; font-size: 1.05rem; text-align: center; border: 2px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
+.complete-input:focus { outline: none; border-color: var(--accent); }
+
+/* --- Correction pas-à-pas --- */
+.corr-steps { margin: 0.4rem 0; padding-left: 1.2rem; }
+.corr-steps li { margin-bottom: 0.5rem; }
+
+/* --- Objectif hebdo --- */
+.weekly-goal { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--muted); margin: 0.6rem 0; }
+.weekly-goal .mini-bar { width: 120px; }
+
+/* --- Difficulté adaptative --- */
+.adaptive-nudge { background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: 0.7rem 0.9rem; margin-bottom: 0.8rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-weight: 600; color: var(--accent-ink); }
+.adaptive-nudge .btn { margin-left: auto; }
+
+/* --- Succès / badges (tableau de bord) --- */
+.badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0.6rem; }
+.badge-item { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; text-align: center; padding: 0.7rem 0.4rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.badge-item.locked { opacity: 0.5; }
+.badge-item.got { border-color: var(--accent); background: var(--accent-soft); }
+.badge-ico { font-size: 1.6rem; }
+.badge-lab { font-size: 0.78rem; }
+
+/* --- Examen blanc --- */
+.exam-hero { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; background: linear-gradient(135deg, var(--accent-soft), var(--surface)); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem; margin-bottom: 1rem; }
+.exam-hero h1 { font-size: 1.3rem; margin: 0; }
+.exam-timer { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 1.2rem; color: var(--accent-ink); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 0.2rem 0.7rem; }
+.exam-choices { display: flex; flex-direction: column; gap: 0.5rem; }
+
+/* --- Générateur de fiches --- */
+.fiche-form { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: end; }
+.fiche-form label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; font-weight: 600; }
+.fiche-form select, .fiche-form input { min-height: 42px; padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
+
+/* --- Feuilles imprimables --- */
+.print-sheet { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.4rem; }
+.print-sheet h1 { font-size: 1.4rem; }
+.print-sheet h2 { font-size: 1.1rem; margin-top: 1rem; }
+.fiche-meta { color: var(--muted); }
+.fiche-exos > li, .fiche-corrige ol > li { margin-bottom: 0.9rem; }
+.fiche-corrige { margin-top: 1.5rem; border-top: 2px dashed var(--border); padding-top: 0.6rem; }
+.revision-methode > li { margin-bottom: 0.5rem; }
+
+@media print {
+  .topbar, .app-footer, .no-print, .btn-back, .top-actions { display: none !important; }
+  body, html[data-mode="dark"] { background: #fff; color: #000; }
+  .app-main { max-width: 100%; padding: 0; }
+  .print-sheet { border: 0; box-shadow: none; padding: 0; }
+  .cours-bloc { break-inside: avoid; }
+}
+
 /* --- Aide-mémoire / formulaire --- */
 .form-theme { border-left: 5px solid var(--accent); background: var(--surface); border: 1px solid var(--border); border-left: 5px solid var(--accent); border-radius: var(--radius); padding: 1rem 1.1rem; margin-bottom: 1.2rem; }
 .form-theme > h2 { font-size: 1.2rem; color: var(--accent-ink); }

@@ -305,51 +305,91 @@ let _exId = 0;
  * @param {Object} exercice  { id, niveau, type, consigne, generer(), indices[], correction_detaillee }
  * @param {Object} hooks     { onCorrect(xp), onAttempt() }
  */
+// Insère du texte à la position du curseur d'un champ.
+function insertAtCursor(inp, text) {
+  const s = inp.selectionStart ?? inp.value.length;
+  const e = inp.selectionEnd ?? inp.value.length;
+  if (text === '⌫') {
+    if (s === e && s > 0) { inp.value = inp.value.slice(0, s - 1) + inp.value.slice(e); inp.setSelectionRange(s - 1, s - 1); }
+    else { inp.value = inp.value.slice(0, s) + inp.value.slice(e); inp.setSelectionRange(s, s); }
+  } else {
+    inp.value = inp.value.slice(0, s) + text + inp.value.slice(e);
+    const p = s + text.length; inp.setSelectionRange(p, p);
+  }
+  inp.focus();
+}
+
+const KEYPAD = ['x', '²', '³', '√', '(', ')', '/', '×', '−', ';', '⌫'];
+const keypadHtml = () => `<div class="keypad" data-keypad>` +
+  KEYPAD.map((k) => `<button type="button" class="key" data-key="${k}">${k}</button>`).join('') + `</div>`;
+
+// Lecture à voix haute (synthèse vocale du navigateur).
+function speakEl(wrap) {
+  if (!window.speechSynthesis) return;
+  const parts = [];
+  const c = wrap.querySelector('.ex-consigne'); if (c) parts.push(c.textContent);
+  const e = wrap.querySelector('.ex-enonce'); if (e) parts.push(e.textContent);
+  const txt = parts.join('. ').replace(/\s+/g, ' ').trim();
+  if (!txt) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(txt);
+  u.lang = 'fr-FR'; u.rate = 0.95;
+  window.speechSynthesis.speak(u);
+}
+
 export function mountExercise(container, exercice, hooks = {}) {
   const uid = `ex-${++_exId}`;
   const niveauXP = { 1: 5, 2: 10, 3: 20 }[exercice.niveau] || 5;
-  let state = null; // { enonce, reponse, ... } courant
-  let hintsShown = 0;
-  let attempts = 0;
-  let solved = false;
+  let state = null;
+  let hintsShown = 0, attempts = 0, solved = false, correctionStep = 0;
+  let order = null;          // ordre courant (type ordonner_etapes)
+  let lastInput = null;      // dernier champ focalisé (pour le clavier)
 
   const wrap = document.createElement('div');
   wrap.className = 'exercice';
   wrap.dataset.niveau = exercice.niveau;
   container.appendChild(wrap);
 
+  const type = exercice.type;
+
+  function inputZone() {
+    if (type === 'vrai_faux') {
+      return `<div class="vf-group" role="group" aria-label="Vrai ou faux">
+          <button class="btn btn-choice" data-vf="vrai">Vrai</button>
+          <button class="btn btn-choice" data-vf="faux">Faux</button></div>`;
+    }
+    if (type === 'qcm' || state.choix) {
+      return `<div class="qcm-group" role="radiogroup">` +
+        state.choix.map((c, i) => `<button class="btn btn-choice" data-choice="${i}">${katexInline(c)}</button>`).join('') + `</div>`;
+    }
+    if (type === 'ordonner_etapes') {
+      return `<ul class="ordonner" data-ordonner></ul>
+        <div class="answer-row"><button class="btn btn-primary" data-act="check">Vérifier l'ordre</button></div>`;
+    }
+    if (type === 'complete') {
+      const parts = String(state.enonce_complete || state.enonce).split(/\{(\d+)\}/);
+      let html = '<div class="complete-zone">';
+      parts.forEach((p, i) => {
+        if (i % 2 === 1) html += `<input type="text" class="complete-input" data-idx="${p}" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Champ ${+p + 1}">`;
+        else html += `<span class="complete-txt">${p}</span>`;
+      });
+      html += '</div>' + keypadHtml() + `<div class="answer-row"><button class="btn btn-primary" data-act="check">Vérifier</button></div>`;
+      return html;
+    }
+    // saisie (défaut)
+    return `<div class="answer-row">
+        <input type="text" class="answer-input" id="${uid}-in" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Ta réponse…" aria-label="Réponse">
+        <button class="btn btn-primary" data-act="check">Vérifier</button></div>` + keypadHtml();
+  }
+
   function render() {
     state = exercice.generer();
-    hintsShown = 0;
-    attempts = 0;
-    solved = false;
+    hintsShown = 0; attempts = 0; solved = false; correctionStep = 0; lastInput = null;
+    order = null;
 
     const consigne = state.consigne || exercice.consigne || '';
-    const isQcm = (exercice.type === 'qcm' || state.choix);
-    const isVF = exercice.type === 'vrai_faux';
-
-    let inputHtml;
-    if (isVF) {
-      inputHtml = `
-        <div class="vf-group" role="group" aria-label="Vrai ou faux">
-          <button class="btn btn-choice" data-vf="vrai">Vrai</button>
-          <button class="btn btn-choice" data-vf="faux">Faux</button>
-        </div>`;
-    } else if (isQcm) {
-      inputHtml = `<div class="qcm-group" role="radiogroup">` +
-        state.choix.map((c, i) =>
-          `<button class="btn btn-choice" data-choice="${i}">${katexInline(c)}</button>`
-        ).join('') + `</div>`;
-    } else {
-      inputHtml = `
-        <div class="answer-row">
-          <input type="text" class="answer-input" id="${uid}-in"
-                 inputmode="text" autocomplete="off" autocapitalize="off"
-                 spellcheck="false" placeholder="Ta réponse…"
-                 aria-label="Réponse">
-          <button class="btn btn-primary" data-act="check">Vérifier</button>
-        </div>`;
-    }
+    const enonceHtml = type === 'complete' ? '' : `<div class="ex-enonce">${state.enonce}</div>`;
+    const speakBtn = window.speechSynthesis ? '<button class="btn btn-ghost" data-act="speak" title="Lire à voix haute">🔊</button>' : '';
 
     wrap.innerHTML = `
       <div class="ex-head">
@@ -357,117 +397,159 @@ export function mountExercise(container, exercice, hooks = {}) {
         <span class="ex-attempts" data-attempts></span>
       </div>
       ${consigne ? `<p class="ex-consigne">${consigne}</p>` : ''}
-      <div class="ex-enonce">${state.enonce}</div>
+      ${enonceHtml}
       <div class="ex-visuel" data-visuel></div>
-      ${inputHtml}
+      ${inputZone()}
       <div class="ex-feedback" data-feedback aria-live="polite"></div>
       <div class="ex-tools">
         <button class="btn btn-ghost" data-act="hint">💡 Indice</button>
         <button class="btn btn-ghost" data-act="solution">📖 Correction</button>
+        ${speakBtn}
         <button class="btn btn-ghost" data-act="new">🔄 Nouvel exercice</button>
       </div>
       <div class="ex-hints" data-hints></div>
-      <div class="ex-solution" data-solution hidden></div>
-    `;
+      <div class="ex-solution" data-solution hidden></div>`;
 
     renderMath(wrap);
-    // Visuel interactif optionnel (graphique SVG, figure JSXGraph, Chart.js…)
     const visuelEl = wrap.querySelector('[data-visuel]');
-    if (typeof state.visuel === 'function') {
-      try { state.visuel(visuelEl); } catch (e) { console.error('[engine] visuel exercice :', e); }
-    } else {
-      visuelEl.remove();
-    }
+    if (typeof state.visuel === 'function') { try { state.visuel(visuelEl); } catch (e) { console.error('[engine] visuel exercice :', e); } }
+    else visuelEl.remove();
+
+    if (type === 'ordonner_etapes') initOrdonner();
     bind();
+  }
+
+  // — Type "ordonner les étapes" —
+  function initOrdonner() {
+    const n = state.etapes.length;
+    order = [...Array(n).keys()];
+    for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+    if (order.every((v, i) => v === i)) order.reverse(); // éviter de tomber déjà rangé
+    drawOrdonner();
+  }
+  function drawOrdonner() {
+    const ul = wrap.querySelector('[data-ordonner]');
+    ul.innerHTML = order.map((orig, i) => `
+      <li class="ord-item">
+        <span class="ord-text">${state.etapes[orig]}</span>
+        <span class="ord-btns">
+          <button class="ord-move" data-up="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Monter">▲</button>
+          <button class="ord-move" data-down="${i}" ${i === order.length - 1 ? 'disabled' : ''} aria-label="Descendre">▼</button>
+        </span></li>`).join('');
+    renderMath(ul);
+    ul.querySelectorAll('[data-up]').forEach((b) => b.addEventListener('click', () => { const i = +b.dataset.up; [order[i - 1], order[i]] = [order[i], order[i - 1]]; drawOrdonner(); }));
+    ul.querySelectorAll('[data-down]').forEach((b) => b.addEventListener('click', () => { const i = +b.dataset.down; [order[i + 1], order[i]] = [order[i], order[i + 1]]; drawOrdonner(); }));
   }
 
   function bind() {
     const fb = wrap.querySelector('[data-feedback]');
-    const input = wrap.querySelector('.answer-input');
 
     const onResult = (ok) => {
       attempts++;
       if (typeof hooks.onAttempt === 'function') hooks.onAttempt(exercice.id, ok);
-      wrap.querySelector('[data-attempts]').textContent =
-        attempts > 0 ? `Tentatives : ${attempts}` : '';
+      wrap.querySelector('[data-attempts]').textContent = attempts > 0 ? `Tentatives : ${attempts}` : '';
       if (ok && !solved) {
         solved = true;
         fb.className = 'ex-feedback is-ok';
-        // moins d'XP si beaucoup d'indices/tentatives, mais jamais nul
         const malus = Math.min(niveauXP - 2, (hintsShown * 2) + Math.max(0, attempts - 1) * 2);
         const xp = Math.max(2, niveauXP - malus);
         fb.innerHTML = `<span class="fb-icon">✓</span> ${pick(ENCOURAGE_OK)} <em>+${xp} XP</em>`;
         wrap.classList.add('solved');
         if (typeof hooks.onCorrect === 'function') hooks.onCorrect(xp, exercice.id);
       } else if (ok && solved) {
-        fb.className = 'ex-feedback is-ok';
-        fb.innerHTML = `<span class="fb-icon">✓</span> Toujours juste !`;
+        fb.className = 'ex-feedback is-ok'; fb.innerHTML = `<span class="fb-icon">✓</span> Toujours juste !`;
       } else {
-        fb.className = 'ex-feedback is-err';
-        fb.innerHTML = `<span class="fb-icon">✗</span> ${pick(ENCOURAGE_RETRY)}`;
+        fb.className = 'ex-feedback is-err'; fb.innerHTML = `<span class="fb-icon">✗</span> ${pick(ENCOURAGE_RETRY)}`;
       }
     };
 
-    // Saisie texte
-    if (input) {
-      const check = () => onResult(checkAnswer(input.value, state));
-      wrap.querySelector('[data-act="check"]').addEventListener('click', check);
-      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') check(); });
+    // Suivi du dernier champ focalisé + clavier mathématique
+    wrap.querySelectorAll('.answer-input, .complete-input').forEach((inp) => {
+      inp.addEventListener('focus', () => { lastInput = inp; });
+    });
+    const keypad = wrap.querySelector('[data-keypad]');
+    if (keypad) {
+      lastInput = wrap.querySelector('.answer-input, .complete-input');
+      keypad.querySelectorAll('[data-key]').forEach((k) => {
+        k.addEventListener('click', () => { const t = lastInput || wrap.querySelector('.answer-input, .complete-input'); if (t) insertAtCursor(t, k.dataset.key); });
+      });
     }
 
-    // QCM
-    wrap.querySelectorAll('[data-choice]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        wrap.querySelectorAll('[data-choice]').forEach((b) => b.classList.remove('picked'));
-        btn.classList.add('picked');
-        onResult(parseInt(btn.dataset.choice, 10) === state.correct);
-      });
-    });
+    const checkBtn = wrap.querySelector('[data-act="check"]');
 
-    // Vrai / Faux
-    wrap.querySelectorAll('[data-vf]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        wrap.querySelectorAll('[data-vf]').forEach((b) => b.classList.remove('picked'));
-        btn.classList.add('picked');
-        const userTrue = btn.dataset.vf === 'vrai';
-        onResult(userTrue === !!state.reponse);
-      });
-    });
+    if (type === 'ordonner_etapes') {
+      checkBtn.addEventListener('click', () => onResult(order.every((v, i) => v === i)));
+    } else if (type === 'complete') {
+      const inputs = [...wrap.querySelectorAll('.complete-input')];
+      const check = () => onResult(state.champs.every((c, i) => checkAnswer(inputs[i] ? inputs[i].value : '', c)));
+      checkBtn.addEventListener('click', check);
+      inputs.forEach((inp) => inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') check(); }));
+    } else {
+      const input = wrap.querySelector('.answer-input');
+      if (input && checkBtn) {
+        const check = () => onResult(checkAnswer(input.value, state));
+        checkBtn.addEventListener('click', check);
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') check(); });
+      }
+    }
 
-    // Indices progressifs
+    wrap.querySelectorAll('[data-choice]').forEach((btn) => btn.addEventListener('click', () => {
+      wrap.querySelectorAll('[data-choice]').forEach((b) => b.classList.remove('picked'));
+      btn.classList.add('picked'); onResult(parseInt(btn.dataset.choice, 10) === state.correct);
+    }));
+    wrap.querySelectorAll('[data-vf]').forEach((btn) => btn.addEventListener('click', () => {
+      wrap.querySelectorAll('[data-vf]').forEach((b) => b.classList.remove('picked'));
+      btn.classList.add('picked'); onResult((btn.dataset.vf === 'vrai') === !!state.reponse);
+    }));
+
+    // Indices
     wrap.querySelector('[data-act="hint"]').addEventListener('click', () => {
       const hints = exercice.indices || [];
       const box = wrap.querySelector('[data-hints]');
-      if (hintsShown >= hints.length) {
-        box.innerHTML = `<p class="hint">Plus d'indice — tente la correction 📖</p>`;
-        return;
-      }
-      const p = document.createElement('p');
-      p.className = 'hint';
+      if (hintsShown >= hints.length) { box.innerHTML = `<p class="hint">Plus d'indice — tente la correction 📖</p>`; return; }
+      const p = document.createElement('p'); p.className = 'hint';
       p.innerHTML = `<strong>Indice ${hintsShown + 1} :</strong> ${hints[hintsShown]}`;
-      box.appendChild(p);
-      renderMath(p);
-      hintsShown++;
+      box.appendChild(p); renderMath(p); hintsShown++;
     });
 
-    // Correction détaillée
-    wrap.querySelector('[data-act="solution"]').addEventListener('click', () => {
-      const sol = wrap.querySelector('[data-solution]');
-      let html = exercice.correction_detaillee;
-      if (typeof html === 'function') html = html(state);
-      const repDisplay = state.reponseTex
-        ? katexInline(state.reponseTex)
-        : (typeof state.reponse === 'string' ? katexInline(state.reponse) : state.reponse);
-      sol.innerHTML = `<h4>Correction détaillée</h4>${html || ''}` +
-        (state.reponse !== undefined && exercice.type !== 'qcm' && exercice.type !== 'vrai_faux'
-          ? `<p class="sol-answer">Réponse : <strong>${repDisplay}</strong></p>`
-          : '');
-      sol.hidden = false;
-      renderMath(sol);
-    });
+    // Lecture à voix haute
+    const speak = wrap.querySelector('[data-act="speak"]');
+    if (speak) speak.addEventListener('click', () => speakEl(wrap));
 
-    // Nouvel exercice
+    // Correction (pas-à-pas si correction_etapes, sinon détaillée)
+    wrap.querySelector('[data-act="solution"]').addEventListener('click', () => revealCorrection());
+
     wrap.querySelector('[data-act="new"]').addEventListener('click', render);
+  }
+
+  function revealCorrection() {
+    const sol = wrap.querySelector('[data-solution]');
+    sol.hidden = false;
+    const etapes = typeof exercice.correction_etapes === 'function' ? exercice.correction_etapes(state) : exercice.correction_etapes;
+    if (Array.isArray(etapes) && etapes.length) {
+      if (correctionStep === 0) sol.innerHTML = `<h4>Correction pas-à-pas</h4><ol class="corr-steps"></ol><button class="btn btn-ghost" data-act="next-step">Étape suivante →</button>`;
+      const ol = sol.querySelector('.corr-steps');
+      if (correctionStep < etapes.length) {
+        const li = document.createElement('li'); li.innerHTML = etapes[correctionStep]; ol.appendChild(li); renderMath(li); correctionStep++;
+      }
+      const nb = sol.querySelector('[data-act="next-step"]');
+      if (correctionStep >= etapes.length) { nb.remove(); appendReponse(sol); }
+      else { nb.onclick = () => revealCorrection(); }
+      return;
+    }
+    // correction détaillée classique
+    let html = exercice.correction_detaillee;
+    if (typeof html === 'function') html = html(state);
+    sol.innerHTML = `<h4>Correction détaillée</h4>${html || ''}`;
+    appendReponse(sol);
+    renderMath(sol);
+  }
+  function appendReponse(sol) {
+    if (type === 'qcm' || type === 'vrai_faux' || type === 'ordonner_etapes') return;
+    let rep = '';
+    if (type === 'complete') rep = state.champs.map((c) => c.reponseTex || c.reponse).join(' ; ');
+    else rep = state.reponseTex ? katexInline(state.reponseTex) : (typeof state.reponse === 'string' ? katexInline(state.reponse) : state.reponse);
+    if (rep !== '' && rep !== undefined) { const p = document.createElement('p'); p.className = 'sol-answer'; p.innerHTML = `Réponse : <strong>${rep}</strong>`; sol.appendChild(p); renderMath(p); }
   }
 
   render();
@@ -484,18 +566,21 @@ export function mountExercise(container, exercice, hooks = {}) {
  * @param {Array} questions  [{ type:'qcm'|'saisie'|'vrai_faux', question, choix?, correct?, reponse?, validation?, explication? }]
  * @param {Object} hooks     { onPass(xp), onComplete(score,total) }
  */
-export function mountQuiz(container, questions, hooks = {}) {
+export function mountQuiz(container, questions, hooks = {}, opts = {}) {
   let idx = 0;
   let score = 0;
   const total = questions.length;
   const answered = new Array(total).fill(false);
+  const mode = opts.mode || 'chapitre'; // 'chapitre' | 'examen'
 
   const wrap = document.createElement('div');
   wrap.className = 'quiz';
   container.appendChild(wrap);
 
   function renderQuestion() {
-    const q = questions[idx];
+    // Question génératale : si elle fournit generer(), on tire des valeurs.
+    const base = questions[idx];
+    const q = typeof base.generer === 'function' ? Object.assign({}, base, base.generer()) : base;
     const isVF = q.type === 'vrai_faux';
     const isQcm = q.type === 'qcm';
 
@@ -569,14 +654,18 @@ export function mountQuiz(container, questions, hooks = {}) {
     const pct = Math.round((score / total) * 100);
     const passed = pct >= 80;
     const xp = score * 10 + (passed ? 50 : 0);
+    let msg;
+    if (mode === 'examen') {
+      msg = pct >= 80 ? '🎉 Excellent ! Tu es prêt·e.' : pct >= 50 ? '👍 Pas mal — continue à t\'entraîner.' : '💪 Courage, retravaille les chapitres concernés.';
+    } else {
+      msg = passed ? '🏅 Chapitre validé ! Badge débloqué.' : 'Presque ! Atteins 80 % pour décrocher le badge. Réessaie quand tu veux.';
+    }
     wrap.innerHTML = `
       <div class="quiz-result ${passed ? 'pass' : 'fail'}">
         <div class="quiz-score">${score} / ${total}</div>
-        <p>${passed
-          ? '🏅 Chapitre validé ! Badge débloqué.'
-          : 'Presque ! Atteins 80 % pour décrocher le badge. Réessaie quand tu veux.'}</p>
+        <p>${msg}</p>
         <p class="quiz-xp">+${xp} XP</p>
-        <button class="btn btn-ghost" data-act="retry">🔄 Refaire le quiz</button>
+        <button class="btn btn-ghost" data-act="retry">🔄 ${mode === 'examen' ? 'Refaire un examen' : 'Refaire le quiz'}</button>
       </div>`;
     wrap.querySelector('[data-act="retry"]').addEventListener('click', () => {
       idx = 0; score = 0; answered.fill(false); renderQuestion();

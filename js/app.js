@@ -73,6 +73,7 @@ const Store = {
     this.data.streak = this.data.streak || { count: 0, lastDay: null };
     this.data.settings = Object.assign({ theme: 'auto', font: 'normal' }, this.data.settings || {});
     this.data.history = this.data.history || [];
+    this.data.achievements = this.data.achievements || {};
     return this;
   },
   save() {
@@ -109,6 +110,7 @@ const Store = {
     this.touchActivity();
     this.save();
     refreshTopbar();
+    checkAchievements();
   },
 
   // — Suivi fin par exercice (tentatives, réussites, échecs) —
@@ -131,6 +133,7 @@ const Store = {
     this.data.badges[chId] = { date: Date.now() };
     this.save();
     refreshTopbar();
+    checkAchievements();
   },
   setQuizScore(chId, score, total) { this.chapter(chId).quizScore = `${score}/${total}`; this.save(); },
   setLast(chId) { this.data.last = chId; this.save(); },
@@ -205,10 +208,38 @@ const Store = {
   },
   reset() {
     this.data = { version: 2, xp: 0, badges: {}, chapters: {}, last: null,
-      streak: { count: 0, lastDay: null }, settings: this.data.settings, history: [] };
+      streak: { count: 0, lastDay: null }, settings: this.data.settings, history: [], achievements: {} };
     this.save();
   },
 };
+
+// ---------------------------------------------------------------------
+//  Succès / badges de progression
+// ---------------------------------------------------------------------
+
+const WEEKLY_GOAL = 100; // XP visés par semaine
+
+const ACHIEVEMENTS = [
+  { id: 'first',   icone: '🎯', label: 'Premier pas',       cond: () => Store.data.xp > 0 },
+  { id: 'xp100',   icone: '⭐', label: '100 XP',            cond: () => Store.data.xp >= 100 },
+  { id: 'xp500',   icone: '🌟', label: '500 XP',            cond: () => Store.data.xp >= 500 },
+  { id: 'streak3', icone: '🔥', label: '3 jours d\'affilée', cond: () => Store.data.streak.count >= 3 },
+  { id: 'streak7', icone: '🔥', label: 'Une semaine !',     cond: () => Store.data.streak.count >= 7 },
+  { id: 'chap1',   icone: '🏅', label: '1er chapitre validé', cond: () => Object.keys(Store.data.badges).length >= 1 },
+  { id: 'theme',   icone: '📗', label: 'Un thème complété',  cond: () => THEMES.some((t) => Store.themeProgress(t.id).pct === 100) },
+  { id: 'half',    icone: '🏆', label: 'À mi-chemin (9 ch.)', cond: () => Store.globalProgress().done >= 9 },
+  { id: 'all',     icone: '👑', label: 'Brevet en poche !',  cond: () => Store.globalProgress().done >= CHAPTERS.length },
+];
+
+function checkAchievements() {
+  const a = Store.data.achievements;
+  const fresh = [];
+  for (const def of ACHIEVEMENTS) {
+    if (!a[def.id] && def.cond()) { a[def.id] = { date: Date.now() }; fresh.push(def); }
+  }
+  if (fresh.length) { Store.save(); fresh.forEach((def, i) => setTimeout(() => toast(`${def.icone} Succès débloqué : ${def.label}`), i * 600)); }
+  return fresh;
+}
 
 // ---------------------------------------------------------------------
 //  Réglages (thème clair/sombre, taille de police)
@@ -286,6 +317,19 @@ function refreshTopbar() {
 }
 
 // ---------------------------------------------------------------------
+//  Toast (notification éphémère)
+// ---------------------------------------------------------------------
+
+function toast(html) {
+  const t = document.createElement('div');
+  t.className = 'toast-badge';
+  t.innerHTML = html;
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 3000);
+}
+
+// ---------------------------------------------------------------------
 //  Confettis (animation de réussite, sans bibliothèque)
 // ---------------------------------------------------------------------
 
@@ -326,10 +370,15 @@ const app = () => document.getElementById('app');
 function router() {
   const hash = location.hash || '#/';
   window.scrollTo(0, 0);
+  if (examTimer) { clearInterval(examTimer); examTimer = null; } // stop chrono si on quitte l'examen
   const m = hash.match(/^#\/chapitre\/(c\d+)/);
+  const rev = hash.match(/^#\/revision\/(c\d+)/);
   if (m) renderChapter(m[1]);
+  else if (rev) renderRevision(rev[1]);
   else if (hash.startsWith('#/tableau')) renderDashboard();
   else if (hash.startsWith('#/formulaire')) renderFormulaire();
+  else if (hash.startsWith('#/examen')) renderExamen();
+  else if (hash.startsWith('#/fiche')) renderFiche();
   else renderHome();
 }
 function navigate(hash) { location.hash = hash; }
@@ -377,10 +426,17 @@ function renderHome() {
           ${streak > 1 ? `<span>🔥 <strong>${streak}</strong> jours d'affilée</span>` : ''}
         </div>
       </div>
+      <div class="weekly-goal" title="Objectif de la semaine">
+        <span>🎯 Objectif de la semaine</span>
+        <span class="mini-bar"><span style="width:${Math.min(100, Math.round(Store.weeklyXP() / WEEKLY_GOAL * 100))}%"></span></span>
+        <span class="mini-prog-txt">${Store.weeklyXP()}/${WEEKLY_GOAL} XP</span>
+      </div>
       <div class="hero-actions">
         ${last ? `<button class="btn btn-primary btn-resume" data-resume="${last.id}">▶️ Reprendre : ${last.icone} ${last.titre}</button>` : ''}
-        <a class="btn btn-ghost" href="#/tableau">📊 Mon tableau de bord</a>
+        <a class="btn btn-ghost" href="#/tableau">📊 Tableau de bord</a>
         <a class="btn btn-ghost" href="#/formulaire">📖 Aide-mémoire</a>
+        <a class="btn btn-ghost" href="#/examen">📝 Examen blanc</a>
+        <a class="btn btn-ghost" href="#/fiche">🖨️ Fiches (tuteur)</a>
       </div>
     </section>
 
@@ -478,6 +534,7 @@ function buildChapterPage(root, meta, chap) {
         <h1>${chap.titre}</h1>
       </div>
       <div class="ch-actions">
+        <a class="btn btn-ghost" href="#/revision/${meta.id}">🖨️ Fiche de révision</a>
         <button class="btn btn-ghost ch-review" data-review aria-pressed="${Store.isReview(meta.id)}">${Store.isReview(meta.id) ? '🔖 À revoir' : '🔖 Marquer à revoir'}</button>
         ${Store.hasBadge(meta.id) ? '<span class="ch-badge">🏅 Validé</span>' : ''}
       </div>
@@ -525,15 +582,35 @@ function buildChapterPage(root, meta, chap) {
   const tabs = root.querySelector('.level-tabs');
   const exoHost = root.querySelector('.exos-host');
   const niveaux = [{ n: 1, label: 'Découverte' }, { n: 2, label: 'Application' }, { n: 3, label: 'Défi' }];
+  let curLevel = 1;
+  let sessionStreak = 0;   // bonnes réponses d'affilée au niveau courant
+  let nudged = {};         // évite de re-proposer le même palier
+
   function showLevel(n) {
+    curLevel = n; sessionStreak = 0;
     exoHost.innerHTML = '';
     tabs.querySelectorAll('button').forEach((b) => b.classList.toggle('active', parseInt(b.dataset.lvl, 10) === n));
     const exos = (chap.exercices || []).filter((e) => e.niveau === n);
     if (!exos.length) { exoHost.innerHTML = '<p class="muted">Aucun exercice à ce niveau.</p>'; return; }
     exos.forEach((ex) => mountExercise(exoHost, ex, {
-      onCorrect: (xp) => Store.addXP(xp, meta.id),
-      onAttempt: (exId, ok) => Store.recordAttempt(meta.id, exId, ok),
+      onCorrect: (xp) => { Store.addXP(xp, meta.id); onLevelCorrect(); },
+      onAttempt: (exId, ok) => { Store.recordAttempt(meta.id, exId, ok); if (!ok) sessionStreak = 0; },
     }));
+  }
+
+  // Difficulté adaptative : après 3 bonnes réponses d'affilée, proposer le niveau supérieur.
+  function onLevelCorrect() {
+    sessionStreak++;
+    if (sessionStreak >= 3 && curLevel < 3 && !nudged[curLevel]) {
+      nudged[curLevel] = true;
+      const next = curLevel + 1;
+      const banner = document.createElement('div');
+      banner.className = 'adaptive-nudge';
+      banner.innerHTML = `🚀 Tu enchaînes les bonnes réponses ! Prêt·e pour le <strong>niveau ${next}</strong> ?
+        <button class="btn btn-primary" data-next>Niveau ${next} →</button>`;
+      exoHost.prepend(banner);
+      banner.querySelector('[data-next]').addEventListener('click', () => { showLevel(next); window.scrollTo({ top: document.querySelector('#sec-exos').offsetTop - 80, behavior: 'smooth' }); });
+    }
   }
   niveaux.forEach((lv) => {
     const count = (chap.exercices || []).filter((e) => e.niveau === lv.n).length;
@@ -631,6 +708,14 @@ function renderDashboard() {
     <section class="chapter-section">
       <h2>🧭 Maîtrise par chapitre</h2>
       <div class="dash-themes">${themeBars}</div>
+    </section>
+
+    <section class="chapter-section">
+      <h2>🏆 Succès (${Object.keys(Store.data.achievements).length}/${ACHIEVEMENTS.length})</h2>
+      <div class="badge-grid">${ACHIEVEMENTS.map((a) => {
+        const got = !!Store.data.achievements[a.id];
+        return `<div class="badge-item ${got ? 'got' : 'locked'}"><span class="badge-ico">${got ? a.icone : '🔒'}</span><span class="badge-lab">${a.label}</span></div>`;
+      }).join('')}</div>
     </section>
 
     <section class="chapter-section">
@@ -736,6 +821,175 @@ async function renderFormulaire() {
 }
 
 // ---------------------------------------------------------------------
+//  Fiche de révision imprimable (cours + méthode condensés)
+// ---------------------------------------------------------------------
+
+async function renderRevision(id) {
+  const meta = chapterById(id);
+  const root = app();
+  if (!meta || !meta.module) { navigate('#/'); return; }
+  root.setAttribute('data-theme', meta.theme);
+  root.innerHTML = `<p class="loading">Préparation de la fiche…</p>`;
+  let chap;
+  try { chap = (await import(meta.module)).default; } catch (e) { root.innerHTML = `<p class="notice">Erreur. <a href="#/">Retour</a></p>`; return; }
+
+  const cours = (chap.cours || []).filter((b) => b.type !== 'figure').map(renderCoursBloc);
+  const methode = (chap.methode || []).map((e, i) => `<li><strong>${e.titre}</strong> — ${e.explication}</li>`).join('');
+
+  root.innerHTML = `
+    <div class="no-print">
+      <button class="btn btn-ghost btn-back" data-back>← Chapitre</button>
+      <button class="btn btn-primary" data-print>🖨️ Imprimer / PDF</button>
+    </div>
+    <article class="print-sheet">
+      <h1>${chap.icone || meta.icone} ${chap.titre} — Fiche de révision</h1>
+      <p class="muted">${chap.intro || ''}</p>
+      <h2>Cours essentiel</h2>
+      <div class="cours-list"></div>
+      <h2>Méthode</h2>
+      <ol class="revision-methode">${methode}</ol>
+    </article>`;
+  const cl = root.querySelector('.cours-list');
+  cours.forEach((el) => cl.appendChild(el));
+  root.querySelector('[data-back]').addEventListener('click', () => navigate(`#/chapitre/${id}`));
+  root.querySelector('[data-print]').addEventListener('click', () => window.print());
+  renderMath(root);
+}
+
+// ---------------------------------------------------------------------
+//  Réponse / énoncé "papier" d'un exercice généré
+// ---------------------------------------------------------------------
+
+function answerOf(exo, s) {
+  if (exo.type === 'qcm' || s.choix) return s.choix[s.correct];
+  if (exo.type === 'vrai_faux') return s.reponse ? 'Vrai' : 'Faux';
+  if (exo.type === 'ordonner_etapes') return s.etapes.join(' → ');
+  if (exo.type === 'complete') return s.champs.map((c) => c.reponseTex || c.reponse).join(' ; ');
+  return s.reponseTex || s.reponse;
+}
+function enonceForPrint(exo, s) {
+  if (exo.type === 'complete') return (s.enonce_complete || s.enonce).replace(/\{\d+\}/g, '\\,\\underline{\\quad}\\,');
+  if (exo.type === 'ordonner_etapes') return '<ul>' + s.etapes.map((e) => `<li>${e}</li>`).join('') + '</ul>';
+  return s.enonce || '';
+}
+
+// ---------------------------------------------------------------------
+//  Générateur de fiche d'exercices imprimable (mode tuteur)
+// ---------------------------------------------------------------------
+
+function renderFiche() {
+  const root = app();
+  root.removeAttribute('data-theme');
+  const opts = CHAPTERS.filter((c) => c.module).map((c) => `<option value="${c.id}">${c.num}. ${c.titre}</option>`).join('');
+  root.innerHTML = `
+    <button class="btn btn-ghost btn-back" data-back>← Accueil</button>
+    <header class="dash-hero"><h1>🖨️ Générateur de fiches</h1>
+      <p class="muted">Pour le tuteur : génère une feuille d'exercices (avec corrigé) à imprimer pour une séance.</p></header>
+    <section class="chapter-section no-print">
+      <div class="fiche-form">
+        <label>Chapitre <select data-chap>${opts}</select></label>
+        <label>Niveau
+          <select data-lvl><option value="1">1 — Découverte</option><option value="2">2 — Application</option><option value="3">3 — Défi</option></select></label>
+        <label>Nombre d'exercices <input type="number" data-count value="6" min="1" max="15"></label>
+        <button class="btn btn-primary" data-gen>Générer la fiche</button>
+        <button class="btn btn-ghost" data-print disabled>🖨️ Imprimer / PDF</button>
+      </div>
+    </section>
+    <article class="print-sheet" data-sheet></article>`;
+  root.querySelector('[data-back]').addEventListener('click', () => navigate('#/'));
+
+  const sheet = root.querySelector('[data-sheet]');
+  const printBtn = root.querySelector('[data-print]');
+
+  root.querySelector('[data-gen]').addEventListener('click', async () => {
+    const id = root.querySelector('[data-chap]').value;
+    const lvl = parseInt(root.querySelector('[data-lvl]').value, 10);
+    const count = Math.max(1, Math.min(15, parseInt(root.querySelector('[data-count]').value, 10) || 6));
+    const meta = chapterById(id);
+    sheet.innerHTML = '<p class="loading">Génération…</p>';
+    let chap;
+    try { chap = (await import(meta.module)).default; } catch (e) { sheet.innerHTML = '<p class="notice">Erreur.</p>'; return; }
+    const pool = (chap.exercices || []).filter((e) => e.niveau === lvl);
+    if (!pool.length) { sheet.innerHTML = '<p class="muted">Aucun exercice à ce niveau.</p>'; return; }
+    const items = [];
+    for (let i = 0; i < count; i++) {
+      const exo = pool[i % pool.length];
+      const s = exo.generer();
+      items.push({ consigne: s.consigne || exo.consigne || '', enonce: enonceForPrint(exo, s), rep: answerOf(exo, s) });
+    }
+    sheet.innerHTML = `
+      <h1>${chap.titre} — Niveau ${lvl}</h1>
+      <p class="fiche-meta">Nom : ……………………………………  Date : ……………</p>
+      <ol class="fiche-exos">${items.map((it) => `<li>${it.consigne ? `<em>${it.consigne}</em><br>` : ''}${it.enonce}</li>`).join('')}</ol>
+      <div class="fiche-corrige"><h2>Corrigé</h2><ol>${items.map((it) => `<li>${typeof it.rep === 'string' ? `$${it.rep}$` : it.rep}</li>`).join('')}</ol></div>`;
+    renderMath(sheet);
+    printBtn.disabled = false;
+  });
+  printBtn.addEventListener('click', () => window.print());
+}
+
+// ---------------------------------------------------------------------
+//  Examen blanc (questions mélangées de plusieurs chapitres + chrono)
+// ---------------------------------------------------------------------
+
+let examTimer = null;
+
+async function renderExamen() {
+  const root = app();
+  root.removeAttribute('data-theme');
+  if (examTimer) { clearInterval(examTimer); examTimer = null; }
+
+  const params = new URLSearchParams((location.hash.split('?')[1]) || '');
+  const scope = params.get('scope');
+
+  if (!scope) {
+    root.innerHTML = `
+      <button class="btn btn-ghost btn-back" data-back>← Accueil</button>
+      <header class="dash-hero"><h1>📝 Examen blanc</h1>
+        <p class="muted">Une série de questions tirées au hasard pour t'entraîner comme le jour J. Choisis un thème ou tout le programme.</p></header>
+      <section class="chapter-section">
+        <div class="exam-choices">
+          <button class="btn btn-primary" data-scope="all">🎓 Tout le programme</button>
+          ${THEMES.map((t) => `<button class="btn btn-ghost" data-scope="${t.id}">${t.icone} ${t.label}</button>`).join('')}
+        </div>
+      </section>`;
+    root.querySelector('[data-back]').addEventListener('click', () => navigate('#/'));
+    root.querySelectorAll('[data-scope]').forEach((b) => b.addEventListener('click', () => navigate(`#/examen?scope=${b.dataset.scope}`)));
+    return;
+  }
+
+  root.innerHTML = `<p class="loading">Préparation de l'examen…</p>`;
+  const list = CHAPTERS.filter((c) => c.module && (scope === 'all' || c.theme === scope));
+  const questions = [];
+  for (const c of list) {
+    try { const mod = (await import(c.module)).default; (mod.quiz_bilan || []).forEach((q) => questions.push(q)); } catch (e) { /* ignore */ }
+  }
+  for (let i = questions.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [questions[i], questions[j]] = [questions[j], questions[i]]; }
+  const N = Math.min(10, questions.length);
+  const set = questions.slice(0, N);
+
+  root.innerHTML = `
+    <button class="btn btn-ghost btn-back" data-back>← Quitter</button>
+    <header class="exam-hero"><h1>📝 Examen blanc</h1><span class="exam-timer" data-timer>00:00</span></header>
+    <div class="quiz-host"></div>`;
+  root.querySelector('[data-back]').addEventListener('click', () => { if (examTimer) clearInterval(examTimer); navigate('#/'); });
+
+  let sec = 0;
+  const tEl = root.querySelector('[data-timer]');
+  examTimer = setInterval(() => { sec++; tEl.textContent = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`; }, 1000);
+
+  mountQuiz(root.querySelector('.quiz-host'), set, {
+    onComplete: (s, t) => {
+      if (examTimer) { clearInterval(examTimer); examTimer = null; }
+      const passed = t > 0 && s / t >= 0.8;
+      Store.addXP(s * 10 + (passed ? 50 : 0)); // identique à l'XP affichée par le quiz
+      const note = root.querySelector('.quiz-result');
+      if (note) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = `Temps : ${tEl.textContent}`; note.appendChild(p); }
+    },
+  }, { mode: 'examen' });
+}
+
+// ---------------------------------------------------------------------
 //  Félicitations (badge + confettis)
 // ---------------------------------------------------------------------
 
@@ -773,8 +1027,11 @@ window.addEventListener('hashchange', router);
 if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', boot);
 else boot();
 
-// Service worker (hors-ligne + installation). Sans effet en local file://.
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+// Service worker (hors-ligne + installation).
+// Désactivé en local (localhost) pour ne pas servir de cache pendant le dev ;
+// actif en production (GitHub Pages) pour le hors-ligne.
+const _isLocal = ['localhost', '127.0.0.1', ''].includes(location.hostname);
+if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !_isLocal) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register(new URL('sw.js', location.href)).catch((e) => console.warn('[pwa] SW non enregistré', e));
   });
