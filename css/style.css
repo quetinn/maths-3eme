@@ -426,6 +426,14 @@ em { font-style: italic; color: inherit; }
 /* --- Confettis --- */
 .confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 300; }
 
+/* --- Aide-mémoire / formulaire --- */
+.form-theme { border-left: 5px solid var(--accent); background: var(--surface); border: 1px solid var(--border); border-left: 5px solid var(--accent); border-radius: var(--radius); padding: 1rem 1.1rem; margin-bottom: 1.2rem; }
+.form-theme > h2 { font-size: 1.2rem; color: var(--accent-ink); }
+.form-fiche { padding: 0.6rem 0; border-top: 1px dashed var(--border); }
+.form-fiche:first-of-type { border-top: 0; }
+.form-fiche h3 { font-size: 1rem; margin-bottom: 0.3rem; }
+.form-formule { text-align: center; overflow-x: auto; padding: 0.15rem 0; }
+
 /* =====================================================================
    Taille de police & lecture facilitée
    ===================================================================== */

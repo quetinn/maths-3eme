@@ -329,6 +329,7 @@ function router() {
   const m = hash.match(/^#\/chapitre\/(c\d+)/);
   if (m) renderChapter(m[1]);
   else if (hash.startsWith('#/tableau')) renderDashboard();
+  else if (hash.startsWith('#/formulaire')) renderFormulaire();
   else renderHome();
 }
 function navigate(hash) { location.hash = hash; }
@@ -379,6 +380,7 @@ function renderHome() {
       <div class="hero-actions">
         ${last ? `<button class="btn btn-primary btn-resume" data-resume="${last.id}">▶️ Reprendre : ${last.icone} ${last.titre}</button>` : ''}
         <a class="btn btn-ghost" href="#/tableau">📊 Mon tableau de bord</a>
+        <a class="btn btn-ghost" href="#/formulaire">📖 Aide-mémoire</a>
       </div>
     </section>
 
@@ -699,6 +701,38 @@ function renderDashboard() {
   });
 
   refreshTopbar();
+}
+
+// ---------------------------------------------------------------------
+//  Aide-mémoire / formulaire
+// ---------------------------------------------------------------------
+
+async function renderFormulaire() {
+  const root = app();
+  root.removeAttribute('data-theme');
+  root.innerHTML = `<p class="loading">Chargement du formulaire…</p>`;
+  let data;
+  try { data = (await import('./aide_memoire.js')).default; }
+  catch (e) { root.innerHTML = `<p class="notice">Erreur. <a href="#/">Retour</a></p>`; return; }
+
+  const blocks = data.map((grp) => `
+    <section class="form-theme" data-theme="${grp.theme}">
+      <h2>${grp.icone} ${grp.titre}</h2>
+      ${grp.fiches.map((f) => `
+        <div class="form-fiche">
+          <h3>${f.titre}</h3>
+          ${f.formules.map((tex) => `<div class="form-formule">$$${tex}$$</div>`).join('')}
+        </div>`).join('')}
+    </section>`).join('');
+
+  root.innerHTML = `
+    <button class="btn btn-ghost btn-back" data-back>← Accueil</button>
+    <header class="dash-hero"><h1>📖 Aide-mémoire</h1>
+      <p class="muted">Toutes les formules clés à connaître pour le brevet, rassemblées par thème.</p></header>
+    ${blocks}
+  `;
+  root.querySelector('[data-back]').addEventListener('click', () => navigate('#/'));
+  renderMath(root);
 }
 
 // ---------------------------------------------------------------------
