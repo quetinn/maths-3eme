@@ -7,6 +7,15 @@
   <meta name="theme-color" content="#5b8a72" />
   <title>Maths 3ᵉ — Plateforme interactive</title>
 
+  <!-- PWA : installation + hors-ligne -->
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <!-- iOS : « Sur l'écran d'accueil » -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Maths 3ᵉ" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+
   <!-- KaTeX (formules) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous" />
   <!-- JSXGraph (géométrie dynamique) -->
@@ -23,6 +32,10 @@
       <span class="brand-txt">Maths&nbsp;3<sup>e</sup></span>
     </a>
     <div class="xp-mini" id="xpMini" aria-label="Progression"></div>
+    <nav class="top-actions">
+      <a class="top-btn" href="#/tableau" title="Tableau de bord" aria-label="Tableau de bord">📊</a>
+      <button class="top-btn" id="btnSettings" title="Réglages" aria-label="Réglages">⚙️</button>
+    </nav>
   </header>
 
   <!-- Conteneur de l'application (rendu par le routeur) -->

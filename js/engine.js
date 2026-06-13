@@ -387,7 +387,7 @@ export function mountExercise(container, exercice, hooks = {}) {
 
     const onResult = (ok) => {
       attempts++;
-      if (typeof hooks.onAttempt === 'function') hooks.onAttempt();
+      if (typeof hooks.onAttempt === 'function') hooks.onAttempt(exercice.id, ok);
       wrap.querySelector('[data-attempts]').textContent =
         attempts > 0 ? `Tentatives : ${attempts}` : '';
       if (ok && !solved) {
