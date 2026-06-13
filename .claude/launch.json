@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "static",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8123"],
+      "port": 8123
+    },
+    {
+      "name": "dev",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["serve.py"],
+      "port": 8124
+    }
+  ]
+}

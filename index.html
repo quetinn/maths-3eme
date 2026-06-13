@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="Plateforme interactive de mathématiques pour la classe de 3ème — cours, méthodes et exercices auto-corrigés." />
+  <meta name="theme-color" content="#5b8a72" />
+  <title>Maths 3ᵉ — Plateforme interactive</title>
+
+  <!-- KaTeX (formules) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous" />
+  <!-- JSXGraph (géométrie dynamique) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsxgraph@1.10.1/distrib/jsxgraph.css" crossorigin="anonymous" />
+
+  <!-- Feuille de style de l'application -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- Barre supérieure : marque + XP / niveau -->
+  <header class="topbar">
+    <a class="brand" href="#/">
+      <span class="brand-ico">📐</span>
+      <span class="brand-txt">Maths&nbsp;3<sup>e</sup></span>
+    </a>
+    <div class="xp-mini" id="xpMini" aria-label="Progression"></div>
+  </header>
+
+  <!-- Conteneur de l'application (rendu par le routeur) -->
+  <main id="app" class="app-main">
+    <p class="loading">Chargement…</p>
+  </main>
+
+  <footer class="app-footer">
+    <p>Programme cycle 4 · Outil pédagogique · Avance à ton rythme 🌱</p>
+  </footer>
+
+  <noscript>
+    <p style="padding:1rem;text-align:center">
+      Cette application nécessite JavaScript activé pour fonctionner.
+    </p>
+  </noscript>
+
+  <!-- Bibliothèques CDN (globales, chargées avant le module applicatif) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/jsxgraph@1.10.1/distrib/jsxgraphcore.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+
+  <!-- Application (modules ES). Nécessite un serveur HTTP (GitHub Pages OK) :
+       les imports/dynamic import ne fonctionnent pas en file://. -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
