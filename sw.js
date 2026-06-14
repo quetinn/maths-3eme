@@ -5,7 +5,7 @@
 //  Bumper VERSION force le rafraîchissement de tous les fichiers.
 // =====================================================================
 
-const VERSION = 'v6';
+const VERSION = 'v7';
 const CACHE = 'maths3eme-' + VERSION;
 
 // Coquille de l'application (chemins relatifs à l'emplacement du SW = racine)
@@ -35,6 +35,13 @@ const CORE = [
   './js/chapters/r03_fractions.js',
   './js/chapters/r04_proportionnalite.js',
   './js/chapters/r05_cosinus.js',
+  './js/chapters/r06_calcul_litteral.js',
+  './js/chapters/r07_equations.js',
+  './js/chapters/r08_puissances.js',
+  './js/chapters/r09_statistiques.js',
+  './js/chapters/r10_probabilites.js',
+  './js/chapters/r11_transformations.js',
+  './js/chapters/r12_aires_volumes.js',
   './icons/icon-192.png', './icons/icon-512.png',
 ];
 

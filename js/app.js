@@ -45,12 +45,19 @@ export const CHAPTERS = [
   { id: 'c15', num: 15, titre: 'Statistiques',               theme: 'donnees',         priorite: false, icone: '📊', module: './chapters/c15_statistiques.js' },
   { id: 'c16', num: 16, titre: 'Probabilités',               theme: 'donnees',         priorite: false, icone: '🎲', module: './chapters/c16_probabilites.js' },
   { id: 'c17', num: 17, titre: 'Algorithmique',              theme: 'algo',            priorite: false, icone: '💻', module: './chapters/c17_algorithmique.js' },
-  // Rappels de 4ᵉ — bases à réviser avant le programme de 3ᵉ.
-  { id: 'r02', num: 18, titre: 'Nombres relatifs',           theme: 'rappels',         priorite: false, icone: '➕', module: './chapters/r02_nombres_relatifs.js' },
+  // Rappels de 4ᵉ — programme complet à réviser avant la 3ᵉ (ordonné par domaine).
+  { id: 'r02', num: 18, titre: 'Nombres relatifs',             theme: 'rappels',       priorite: false, icone: '➕', module: './chapters/r02_nombres_relatifs.js' },
   { id: 'r03', num: 19, titre: 'Opérations sur les fractions', theme: 'rappels',       priorite: false, icone: '🍰', module: './chapters/r03_fractions.js' },
-  { id: 'r04', num: 20, titre: 'Proportionnalité',           theme: 'rappels',         priorite: false, icone: '⚖️', module: './chapters/r04_proportionnalite.js' },
-  { id: 'r01', num: 21, titre: 'Théorème de Pythagore',      theme: 'rappels',         priorite: false, icone: '📐', module: './chapters/r01_pythagore.js' },
-  { id: 'r05', num: 22, titre: 'Cosinus (triangle rectangle)', theme: 'rappels',       priorite: false, icone: '📐', module: './chapters/r05_cosinus.js' },
+  { id: 'r06', num: 20, titre: 'Calcul littéral (4ᵉ)',         theme: 'rappels',       priorite: false, icone: '✖️', module: './chapters/r06_calcul_litteral.js' },
+  { id: 'r07', num: 21, titre: 'Équations (4ᵉ)',               theme: 'rappels',       priorite: false, icone: '⚖️', module: './chapters/r07_equations.js' },
+  { id: 'r08', num: 22, titre: 'Puissances (4ᵉ)',              theme: 'rappels',       priorite: false, icone: '²',  module: './chapters/r08_puissances.js' },
+  { id: 'r04', num: 23, titre: 'Proportionnalité',             theme: 'rappels',       priorite: false, icone: '⚖️', module: './chapters/r04_proportionnalite.js' },
+  { id: 'r09', num: 24, titre: 'Statistiques (4ᵉ)',            theme: 'rappels',       priorite: false, icone: '📊', module: './chapters/r09_statistiques.js' },
+  { id: 'r10', num: 25, titre: 'Probabilités (4ᵉ)',            theme: 'rappels',       priorite: false, icone: '🎲', module: './chapters/r10_probabilites.js' },
+  { id: 'r01', num: 26, titre: 'Théorème de Pythagore',        theme: 'rappels',       priorite: false, icone: '📐', module: './chapters/r01_pythagore.js' },
+  { id: 'r05', num: 27, titre: 'Cosinus (triangle rectangle)', theme: 'rappels',       priorite: false, icone: '📐', module: './chapters/r05_cosinus.js' },
+  { id: 'r11', num: 28, titre: 'Translation et symétries (4ᵉ)', theme: 'rappels',      priorite: false, icone: '🔄', module: './chapters/r11_transformations.js' },
+  { id: 'r12', num: 29, titre: 'Aires, périmètres et volumes (4ᵉ)', theme: 'rappels',  priorite: false, icone: '📦', module: './chapters/r12_aires_volumes.js' },
 ];
 
 const chapterById = (id) => CHAPTERS.find((c) => c.id === id);
