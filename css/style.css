@@ -28,6 +28,7 @@
   --t-geometrie:#8a6fb0;
   --t-donnees:  #c0894a;
   --t-algo:     #b06f8a;
+  --t-rappels:  #3e9b91;
 
   /* Accent courant (par défaut : vert) */
   --accent:      var(--t-nombres);
@@ -44,6 +45,7 @@
 [data-theme="geometrie"]       { --accent: var(--t-geometrie); --accent-soft:#efe9f6; --accent-ink:#412f5b; }
 [data-theme="donnees"]         { --accent: var(--t-donnees);   --accent-soft:#f7efe2; --accent-ink:#5b431f; }
 [data-theme="algo"]            { --accent: var(--t-algo);      --accent-soft:#f6e9ef; --accent-ink:#5b2f43; }
+[data-theme="rappels"]         { --accent: var(--t-rappels);   --accent-soft:#e2f1ef; --accent-ink:#1f4b45; }
 
 * { box-sizing: border-box; }
 
@@ -395,6 +397,10 @@ em { font-style: italic; color: inherit; }
 /* --- Section "à revoir" --- */
 .review-section { border: 2px solid var(--t-donnees); background: color-mix(in srgb, var(--t-donnees) 8%, var(--surface)); border-radius: var(--radius); padding: 1.1rem; margin-bottom: 1.5rem; }
 .review-section > h2 { font-size: 1.15rem; margin-bottom: 0.7rem; }
+
+/* --- Section "Rappels de 4ᵉ" --- */
+.rappels-section { border: 2px solid var(--t-rappels); background: color-mix(in srgb, var(--t-rappels) 7%, var(--surface)); border-radius: var(--radius); padding: 1.1rem 1.1rem 0.4rem; margin-bottom: 1.5rem; }
+.cc-4eme { background: var(--t-rappels); color: #fff; font-size: 0.62rem; font-weight: 800; padding: 0.05rem 0.32rem; border-radius: 999px; line-height: 1.5; }
 
 /* --- Bouton "à revoir" dans la page chapitre --- */
 .ch-actions { margin-left: auto; display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-end; }

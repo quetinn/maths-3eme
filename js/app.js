@@ -20,6 +20,7 @@ export const THEMES = [
   { id: 'geometrie',       label: 'Géométrie',           icone: '📐' },
   { id: 'donnees',         label: 'Données et probabilités', icone: '📊' },
   { id: 'algo',            label: 'Algorithmique', icone: '💻', bonus: true },
+  { id: 'rappels',         label: 'Rappels de 4ᵉ', icone: '🧰', rappel: true },
 ];
 
 // ---------------------------------------------------------------------
@@ -44,6 +45,8 @@ export const CHAPTERS = [
   { id: 'c15', num: 15, titre: 'Statistiques',               theme: 'donnees',         priorite: false, icone: '📊', module: './chapters/c15_statistiques.js' },
   { id: 'c16', num: 16, titre: 'Probabilités',               theme: 'donnees',         priorite: false, icone: '🎲', module: './chapters/c16_probabilites.js' },
   { id: 'c17', num: 17, titre: 'Algorithmique',              theme: 'algo',            priorite: false, icone: '💻', module: './chapters/c17_algorithmique.js' },
+  // Rappels de 4ᵉ — bases à réviser avant le programme de 3ᵉ.
+  { id: 'r01', num: 18, titre: 'Théorème de Pythagore',      theme: 'rappels',         priorite: false, icone: '📐', module: './chapters/r01_pythagore.js' },
 ];
 
 const chapterById = (id) => CHAPTERS.find((c) => c.id === id);
@@ -424,8 +427,8 @@ function router() {
   const hash = location.hash || '#/';
   window.scrollTo(0, 0);
   if (examTimer) { clearInterval(examTimer); examTimer = null; } // stop chrono si on quitte l'examen
-  const m = hash.match(/^#\/chapitre\/(c\d+)/);
-  const rev = hash.match(/^#\/revision\/(c\d+)/);
+  const m = hash.match(/^#\/chapitre\/([a-z]+\d+)/);
+  const rev = hash.match(/^#\/revision\/([a-z]+\d+)/);
   if (m) renderChapter(m[1]);
   else if (rev) renderRevision(rev[1]);
   else if (hash.startsWith('#/tableau')) renderDashboard();
@@ -449,7 +452,8 @@ function renderHome() {
   const review = CHAPTERS.filter((c) => Store.isReview(c.id));
 
   const priorityCards = CHAPTERS.filter((c) => c.priorite).map(chapterCard).join('');
-  const themesHtml = THEMES.map((t) => {
+  const rappelsChaps = CHAPTERS.filter((c) => c.theme === 'rappels');
+  const themesHtml = THEMES.filter((t) => t.id !== 'rappels').map((t) => {
     const list = CHAPTERS.filter((c) => c.theme === t.id);
     const tp = Store.themeProgress(t.id);
     return `
@@ -469,7 +473,7 @@ function renderHome() {
   root.innerHTML = `
     <section class="hero">
       <h1>Maths 3ᵉ — Prêt·e pour le brevet 🚀</h1>
-      <p class="hero-sub">16 chapitres + 1 bonus, du cours aux exercices interactifs. Avance à ton rythme, aucun chapitre n'est verrouillé.</p>
+      <p class="hero-sub">16 chapitres, 1 bonus et des rappels de 4ᵉ, du cours aux exercices interactifs. Avance à ton rythme, aucun chapitre n'est verrouillé.</p>
       <div class="global-progress">
         <div class="gp-bar"><span style="width:${g.pct}%"></span></div>
         <div class="gp-stats">
@@ -512,6 +516,15 @@ function renderHome() {
       <div class="chapter-grid priority-grid">${priorityCards}</div>
     </section>
 
+    ${rappelsChaps.length ? `
+    <section class="rappels-section" data-theme="rappels">
+      <div class="priority-head">
+        <h2>🧰 Rappels de 4ᵉ</h2>
+        <p>Les bases de l'an dernier à réviser avant d'attaquer le programme de 3ᵉ.</p>
+      </div>
+      <div class="chapter-grid">${rappelsChaps.map(chapterCard).join('')}</div>
+    </section>` : ''}
+
     <div class="all-chapters">
       <h2 class="section-title">Tous les chapitres par thème</h2>
       ${themesHtml}
@@ -538,12 +551,13 @@ function chapterCard(c) {
       <div class="cc-top">
         <span class="cc-ico">${c.icone}</span>
         <span class="cc-tags">
+          ${c.theme === 'rappels' ? '<span class="cc-4eme" title="Rappel de 4ᵉ">4ᵉ</span>' : ''}
           ${Store.isReview(c.id) ? '<span class="cc-review" title="À revoir">🔖</span>' : ''}
           ${c.priorite ? '<span class="cc-star" title="Prioritaire">⭐</span>' : ''}
           ${badge ? '<span class="cc-medal" title="Chapitre validé">🏅</span>' : ''}
         </span>
       </div>
-      <div class="cc-num">Chapitre ${c.num}</div>
+      <div class="cc-num">${c.theme === 'rappels' ? 'Rappel · 4ᵉ' : 'Chapitre ' + c.num}</div>
       <div class="cc-title">${c.titre}</div>
       ${started && available ? `<div class="cc-mastery"><span style="width:${m}%"></span></div>` : ''}
       <div class="cc-status">
@@ -588,7 +602,7 @@ function buildChapterPage(root, meta, chap) {
     <header class="chapter-hero">
       <span class="ch-ico">${chap.icone || meta.icone}</span>
       <div>
-        <div class="ch-eyebrow">Chapitre ${meta.num}${chap.priorite ? ' · ⭐ Prioritaire' : ''}</div>
+        <div class="ch-eyebrow">${meta.theme === 'rappels' ? 'Rappel de 4ᵉ' : 'Chapitre ' + meta.num}${chap.priorite ? ' · ⭐ Prioritaire' : ''}</div>
         <h1>${chap.titre}</h1>
       </div>
       <div class="ch-actions">

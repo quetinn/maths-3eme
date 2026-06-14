@@ -5,7 +5,7 @@
 //  Bumper VERSION force le rafraîchissement de tous les fichiers.
 // =====================================================================
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = 'maths3eme-' + VERSION;
 
 // Coquille de l'application (chemins relatifs à l'emplacement du SW = racine)
@@ -30,6 +30,7 @@ const CORE = [
   './js/chapters/c15_statistiques.js',
   './js/chapters/c16_probabilites.js',
   './js/chapters/c17_algorithmique.js',
+  './js/chapters/r01_pythagore.js',
   './icons/icon-192.png', './icons/icon-512.png',
 ];
 
