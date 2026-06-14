@@ -32,6 +32,43 @@ function pythagoreFig(host, { ab = '', ac = '', bc = '' } = {}) {
   host.appendChild(svg);
 }
 
+// Figure interactive : on règle AB et AC, les carrés des côtés et l'égalité
+// AB² + AC² = BC² se mettent à jour en direct.
+function pythagoreInteractif(host) {
+  const wrap = document.createElement('div'); wrap.className = 'fig-interactive';
+  wrap.innerHTML = `
+    <div class="fig-controls">
+      <label>AB <input type="range" min="2" max="8" value="4" data-ab> <span class="fig-val" data-abv></span></label>
+      <label>AC <input type="range" min="2" max="8" value="3" data-ac> <span class="fig-val" data-acv></span></label>
+    </div>
+    <div data-svg></div>
+    <div class="fig-readout" data-readout></div>`;
+  const svgHost = wrap.querySelector('[data-svg]'), readout = wrap.querySelector('[data-readout]');
+  function draw() {
+    const ab = +wrap.querySelector('[data-ab]').value, ac = +wrap.querySelector('[data-ac]').value;
+    wrap.querySelector('[data-abv]').textContent = ab; wrap.querySelector('[data-acv]').textContent = ac;
+    const bc2 = ab * ab + ac * ac, bc = Math.round(Math.sqrt(bc2) * 100) / 100;
+    const VB = 300, M = 26, s = Math.min(18, (VB - 2 * M) / (ab + ac));
+    const Ax = M + ac * s, Ay = M + ac * s, Bx = Ax + ab * s, Cy = Ay - ac * s;
+    let g = `<svg viewBox="0 0 ${VB} ${VB}" class="svg-plot" role="img" aria-label="triangle rectangle et carrés des côtés">`;
+    g += `<rect x="${Ax.toFixed(1)}" y="${Ay.toFixed(1)}" width="${(ab * s).toFixed(1)}" height="${(ab * s).toFixed(1)}" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>`;
+    g += `<text x="${(Ax + ab * s / 2).toFixed(1)}" y="${(Ay + ab * s / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="13" font-weight="700" fill="var(--accent-ink)">${ab * ab}</text>`;
+    g += `<rect x="${(Ax - ac * s).toFixed(1)}" y="${Cy.toFixed(1)}" width="${(ac * s).toFixed(1)}" height="${(ac * s).toFixed(1)}" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>`;
+    g += `<text x="${(Ax - ac * s / 2).toFixed(1)}" y="${(Cy + ac * s / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="13" font-weight="700" fill="var(--accent-ink)">${ac * ac}</text>`;
+    g += `<polygon points="${Ax.toFixed(1)},${Ay.toFixed(1)} ${Bx.toFixed(1)},${Ay.toFixed(1)} ${Ax.toFixed(1)},${Cy.toFixed(1)}" fill="none" stroke="var(--t-geometrie)" stroke-width="2.5"/>`;
+    g += `<path d="M ${(Ax + 12).toFixed(1)} ${Ay.toFixed(1)} L ${(Ax + 12).toFixed(1)} ${(Ay - 12).toFixed(1)} L ${Ax.toFixed(1)} ${(Ay - 12).toFixed(1)}" fill="none" stroke="var(--muted)"/>`;
+    g += `<text x="${(Ax - 7).toFixed(1)}" y="${(Ay + 14).toFixed(1)}" font-size="12" fill="var(--text)">A</text>`;
+    g += `<text x="${(Bx + 4).toFixed(1)}" y="${(Ay + 14).toFixed(1)}" font-size="12" fill="var(--text)">B</text>`;
+    g += `<text x="${(Ax - 7).toFixed(1)}" y="${(Cy - 4).toFixed(1)}" font-size="12" fill="var(--text)">C</text>`;
+    g += `<text x="${((Bx + Ax) / 2 + 6).toFixed(1)}" y="${((Ay + Cy) / 2 - 4).toFixed(1)}" font-size="11" font-weight="700" fill="var(--t-geometrie)">${bc}</text>`;
+    g += `</svg>`;
+    svgHost.innerHTML = g;
+    readout.innerHTML = `AB² + AC² = ${ab * ab} + ${ac * ac} = <strong>${bc2}</strong> = BC² &nbsp;→&nbsp; BC = √${bc2} ≈ <strong>${bc}</strong>`;
+  }
+  wrap.querySelectorAll('input').forEach((i) => i.addEventListener('input', draw)); draw();
+  host.appendChild(wrap);
+}
+
 export default {
   id: 'r01',
   titre: 'Théorème de Pythagore',
@@ -66,9 +103,9 @@ export default {
       contenu: "Réciproquement, si dans un triangle $BC^2 = AB^2 + AC^2$ (avec $BC$ le plus grand côté), alors le triangle est rectangle en $A$. Si l'égalité est fausse, le triangle n'est pas rectangle.",
     },
     {
-      type: 'figure', titre: 'Triangle rectangle en A',
-      contenu: "$BC$ est l'hypoténuse (face à l'angle droit). $AB$ et $AC$ sont les deux côtés de l'angle droit.",
-      render: (host) => pythagoreFig(host, { ab: 'AB', ac: 'AC', bc: 'BC' }),
+      type: 'figure', titre: 'Théorème de Pythagore en images',
+      contenu: "Règle $AB$ et $AC$ : l'aire du carré sur l'hypoténuse (BC²) est toujours égale à la somme des aires des carrés sur les deux côtés (AB² + AC²).",
+      render: (host) => pythagoreInteractif(host),
     },
     {
       type: 'exemple', enonce: 'Triangle rectangle en $A$, $AB=3$, $AC=4$. Calculer $BC$.',

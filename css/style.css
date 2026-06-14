@@ -322,6 +322,15 @@ em { font-style: italic; color: inherit; }
 .bp-median { stroke: var(--accent-ink); stroke-width: 3; }
 .bp-role { fill: var(--accent-ink); font-size: 11px; font-weight: 700; }
 
+/* Figures interactives (sliders qui redessinent en direct) */
+.fig-interactive { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.7rem 0.8rem; }
+.fig-controls { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; margin-bottom: 0.5rem; }
+.fig-controls label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 600; color: var(--accent-ink); flex: 1 1 130px; }
+.fig-controls input[type="range"] { accent-color: var(--accent); flex: 1; min-width: 70px; }
+.fig-val { font-variant-numeric: tabular-nums; min-width: 2.6ch; display: inline-block; text-align: right; color: var(--text); }
+.fig-readout { margin-top: 0.5rem; font-size: 0.92rem; text-align: center; color: var(--text); line-height: 1.7; }
+.fig-readout strong { color: var(--accent-ink); font-variant-numeric: tabular-nums; }
+
 /* Simulateur de tirage (probabilités) */
 .simulateur { text-align: center; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .sim-face { font-size: 3.5rem; line-height: 1; margin-bottom: 0.6rem; min-height: 3.5rem; }

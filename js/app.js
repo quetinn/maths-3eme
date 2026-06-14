@@ -46,7 +46,11 @@ export const CHAPTERS = [
   { id: 'c16', num: 16, titre: 'Probabilités',               theme: 'donnees',         priorite: false, icone: '🎲', module: './chapters/c16_probabilites.js' },
   { id: 'c17', num: 17, titre: 'Algorithmique',              theme: 'algo',            priorite: false, icone: '💻', module: './chapters/c17_algorithmique.js' },
   // Rappels de 4ᵉ — bases à réviser avant le programme de 3ᵉ.
-  { id: 'r01', num: 18, titre: 'Théorème de Pythagore',      theme: 'rappels',         priorite: false, icone: '📐', module: './chapters/r01_pythagore.js' },
+  { id: 'r02', num: 18, titre: 'Nombres relatifs',           theme: 'rappels',         priorite: false, icone: '➕', module: './chapters/r02_nombres_relatifs.js' },
+  { id: 'r03', num: 19, titre: 'Opérations sur les fractions', theme: 'rappels',       priorite: false, icone: '🍰', module: './chapters/r03_fractions.js' },
+  { id: 'r04', num: 20, titre: 'Proportionnalité',           theme: 'rappels',         priorite: false, icone: '⚖️', module: './chapters/r04_proportionnalite.js' },
+  { id: 'r01', num: 21, titre: 'Théorème de Pythagore',      theme: 'rappels',         priorite: false, icone: '📐', module: './chapters/r01_pythagore.js' },
+  { id: 'r05', num: 22, titre: 'Cosinus (triangle rectangle)', theme: 'rappels',       priorite: false, icone: '📐', module: './chapters/r05_cosinus.js' },
 ];
 
 const chapterById = (id) => CHAPTERS.find((c) => c.id === id);
