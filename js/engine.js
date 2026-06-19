@@ -9,7 +9,7 @@
 //  - Montage d'un exercice et d'un quiz bilan dans le DOM
 // =====================================================================
 
-import { renderMath, katexInline } from './render.js';
+import { renderMath, katexInline, renderChoiceHTML } from './render.js';
 
 // ---------------------------------------------------------------------
 //  1. Helpers de génération paramétrique
@@ -410,7 +410,7 @@ export function mountExercise(container, exercice, hooks = {}) {
     }
     if (type === 'qcm' || state.choix) {
       return `<div class="qcm-group" role="radiogroup">` +
-        state.choix.map((c, i) => `<button class="btn btn-choice" data-choice="${i}">${katexInline(c)}</button>`).join('') + `</div>`;
+        state.choix.map((c, i) => `<button class="btn btn-choice" data-choice="${i}">${renderChoiceHTML(c)}</button>`).join('') + `</div>`;
     }
     if (type === 'ordonner_etapes') {
       return `<ul class="ordonner" data-ordonner></ul>
@@ -606,7 +606,7 @@ export function mountExercise(container, exercice, hooks = {}) {
     if (type === 'qcm' || type === 'vrai_faux' || type === 'ordonner_etapes') return;
     let rep = '';
     if (type === 'complete') rep = state.champs.map((c) => c.reponseTex || c.reponse).join(' ; ');
-    else rep = state.reponseTex ? katexInline(state.reponseTex) : (typeof state.reponse === 'string' ? katexInline(state.reponse) : state.reponse);
+    else rep = state.reponseTex ? katexInline(state.reponseTex) : (typeof state.reponse === 'string' ? renderChoiceHTML(state.reponse) : state.reponse);
     if (rep !== '' && rep !== undefined) { const p = document.createElement('p'); p.className = 'sol-answer'; p.innerHTML = `Réponse : <strong>${rep}</strong>`; sol.appendChild(p); renderMath(p); }
   }
 
@@ -649,7 +649,7 @@ export function mountQuiz(container, questions, hooks = {}, opts = {}) {
         <button class="btn btn-choice" data-vf="faux">Faux</button></div>`;
     } else if (isQcm) {
       body = `<div class="qcm-group">` +
-        q.choix.map((c, i) => `<button class="btn btn-choice" data-choice="${i}">${katexInline(c)}</button>`).join('') +
+        q.choix.map((c, i) => `<button class="btn btn-choice" data-choice="${i}">${renderChoiceHTML(c)}</button>`).join('') +
         `</div>`;
     } else {
       body = `<div class="answer-row">

@@ -59,6 +59,35 @@ export function katexInline(tex) {
   return escapeHtml(tex);
 }
 
+/**
+ * Rend le libellé d'un choix (QCM / vrai-faux) en HTML.
+ *
+ * Un choix peut être :
+ *   - du texte en prose      → « une homothétie », « croissante »…
+ *   - une expression math nue → « 5x + 2 », « \dfrac{a}{b} », « 10^{12} »…
+ *   - un mélange texte + $…$  → « L'image de $4$ par $f$ est $2$. »
+ *
+ * Historiquement TOUS les choix passaient par `katexInline`, donc en mode
+ * mathématique KaTeX où les espaces sont supprimés : « une homothétie »
+ * s'affichait « unehomothétie ». On route désormais chaque choix vers le
+ * bon rendu : la prose reste du texte (espaces préservés), les maths nues
+ * passent par KaTeX, et le mélange est laissé au passage `renderMath` du
+ * conteneur (qui ne traite que les segments délimités par `$…$`).
+ */
+export function renderChoiceHTML(c) {
+  const s = String(c);
+  // Mélange texte + maths délimitées : on échappe et on laisse renderMath
+  // (appelé sur le conteneur après injection) traiter les segments $…$.
+  if (s.includes('$')) return escapeHtml(s);
+  // Prose : présence d'un mot de 2 lettres ou plus, sans signal LaTeX (\ ^ _).
+  if (/[a-zàâäéèêëïîôöùûüç]{2,}/i.test(s) && !/[\\^_]/.test(s)) return escapeHtml(s);
+  // Nombres / symboles seuls (« 10 000 », « 0 et 1 »… déjà capté ci-dessus) :
+  // pas de lettre ni de signal LaTeX → garder l'espacement d'origine.
+  if (!/[a-zA-Z]/.test(s) && !/[\\^_]/.test(s)) return escapeHtml(s);
+  // Sinon : expression mathématique compacte (5x+2, (x-4)(x+4), f(x)=2x, \dfrac…).
+  return katexInline(s);
+}
+
 /** Rend une formule LaTeX centrée (display) et renvoie le HTML (chaîne). */
 export function katexBlock(tex) {
   if (window.katex) {

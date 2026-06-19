@@ -5,14 +5,14 @@
 //  Bumper VERSION force le rafraîchissement de tous les fichiers.
 // =====================================================================
 
-const VERSION = 'v7';
+const VERSION = 'v8';
 const CACHE = 'maths3eme-' + VERSION;
 
 // Coquille de l'application (chemins relatifs à l'emplacement du SW = racine)
 const CORE = [
   './', './index.html', './manifest.json',
   './css/style.css',
-  './js/app.js', './js/engine.js', './js/render.js', './js/aide_memoire.js',
+  './js/app.js', './js/engine.js', './js/render.js', './js/aide_memoire.js', './js/brevet.js',
   './js/chapters/c01_calcul_litteral.js',
   './js/chapters/c02_identites_remarquables.js',
   './js/chapters/c03_equations_1er_degre.js',

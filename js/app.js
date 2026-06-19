@@ -8,7 +8,7 @@
 // =====================================================================
 
 import { renderMath } from './render.js';
-import { mountExercise, mountQuiz } from './engine.js';
+import { mountExercise, mountQuiz, checkAnswer } from './engine.js';
 
 // ---------------------------------------------------------------------
 //  Registre des thèmes
@@ -229,6 +229,14 @@ const Store = {
       .filter((x) => x.review || (x.ko >= 2 && x.rate >= 0.4))
       .sort((a, b) => (b.review - a.review) || (b.rate - a.rate));
   },
+  // Bilan d'erreurs agrégé par domaine (thème) — pour le tableau de bord.
+  errorsByTheme() {
+    return THEMES.map((t) => {
+      let ok = 0, ko = 0;
+      CHAPTERS.filter((c) => c.theme === t.id).forEach((c) => { const e = this.chapterErrors(c.id); ok += e.ok; ko += e.ko; });
+      return { t, ok, ko, total: ok + ko, rate: ok + ko ? ko / (ok + ko) : 0 };
+    }).filter((x) => x.total > 0).sort((a, b) => b.rate - a.rate);
+  },
 
   weeklyXP() {
     const cutoff = ymd(new Date(Date.now() - 6 * 86400000));
@@ -237,13 +245,29 @@ const Store = {
     return Math.max(0, this.data.xp - base);
   },
 
-  exportJSON() { return JSON.stringify(this.data); },
+  // Export horodaté et étiqueté (les métas _app/_savedAt aident à reconnaître
+  // une sauvegarde valide ; elles sont inoffensives à la relecture).
+  exportJSON() { return JSON.stringify(Object.assign({ _app: 'maths3eme', _savedAt: new Date().toISOString() }, this.data)); },
+  // Variante compacte pour le QR (progression essentielle, sans l'historique).
+  exportCompact() {
+    const chapters = {};
+    for (const id in this.data.chapters) {
+      const c = this.data.chapters[id];
+      chapters[id] = { xp: c.xp || 0, quizPassed: !!c.quizPassed, quizScore: c.quizScore || null, review: !!c.review };
+    }
+    return JSON.stringify({ _app: 'maths3eme', xp: this.data.xp, chapters, badges: this.data.badges,
+      streak: this.data.streak, achievements: this.data.achievements, settings: this.data.settings, examPassed: this.data.examPassed });
+  },
   importJSON(text) {
     const obj = JSON.parse(text);
     if (!obj || typeof obj !== 'object' || !('xp' in obj)) throw new Error('Sauvegarde invalide');
+    delete obj._app; delete obj._savedAt; // métadonnées d'export, pas des données de jeu
     this.data = Object.assign(this.data, obj);
-    this.load(); // re-applique les défauts
-    this.save();
+    this.save(); // persiste D'ABORD la sauvegarde importée dans localStorage…
+    this.load(); // …puis re-applique les défauts en relisant ce qu'on vient d'écrire
+    // (l'inverse écrasait l'import par l'ancienne sauvegarde locale : restauration cassée).
+    refreshTopbar();
+    return { xp: this.data.xp, chapters: Object.keys(this.data.chapters).length, badges: Object.keys(this.data.badges).length };
   },
   reset() {
     this.data = { version: 2, xp: 0, badges: {}, chapters: {}, last: null,
@@ -429,6 +453,35 @@ function confetti() {
 }
 
 // ---------------------------------------------------------------------
+//  Génération de QR (chargement paresseux de la bibliothèque par CDN)
+// ---------------------------------------------------------------------
+
+let _qrLoading = null;
+function loadQRLib() {
+  if (window.qrcode) return Promise.resolve();
+  if (_qrLoading) return _qrLoading;
+  _qrLoading = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+    s.crossOrigin = 'anonymous';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('QR lib non chargée'));
+    document.head.appendChild(s);
+  });
+  return _qrLoading;
+}
+
+/** Renvoie un <svg> QR (chaîne HTML) encodant `text`. */
+async function makeQR(text) {
+  await loadQRLib();
+  // typeNumber 0 = ajustement automatique ; niveau 'L' = capacité maximale.
+  const qr = window.qrcode(0, 'L');
+  qr.addData(text);
+  qr.make();
+  return qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+}
+
+// ---------------------------------------------------------------------
 //  Routeur SPA (hash)
 // ---------------------------------------------------------------------
 
@@ -445,6 +498,10 @@ function router() {
   else if (hash.startsWith('#/tableau')) renderDashboard();
   else if (hash.startsWith('#/formulaire')) renderFormulaire();
   else if (hash.startsWith('#/examen')) renderExamen();
+  else if (hash.startsWith('#/brevet')) renderBrevet();
+  else if (hash.startsWith('#/revise')) renderRevise();
+  else if (hash.startsWith('#/restore')) renderRestore();
+  else if (hash.startsWith('#/diagnostic')) renderDiagnostic();
   else if (hash.startsWith('#/fiche')) renderFiche();
   else renderHome();
 }
@@ -506,6 +563,8 @@ function renderHome() {
       </div>
       <div class="hero-actions">
         ${last ? `<button class="btn btn-primary btn-resume" data-resume="${last.id}">▶️ Reprendre : ${last.icone} ${last.titre}</button>` : ''}
+        <a class="btn btn-primary" href="#/brevet">📄 Brevet blanc</a>
+        <a class="btn btn-ghost" href="#/revise">🔁 Révision du jour</a>
         <a class="btn btn-ghost" href="#/tableau">📊 Tableau de bord</a>
         <a class="btn btn-ghost" href="#/formulaire">📖 Aide-mémoire</a>
         <a class="btn btn-ghost" href="#/examen">📝 Examen blanc</a>
@@ -746,6 +805,7 @@ function renderDashboard() {
   root.removeAttribute('data-theme');
   const g = Store.globalProgress();
   const weak = Store.weakChapters();
+  const errBy = Store.errorsByTheme();
 
   const themeBars = THEMES.map((t) => {
     const tp = Store.themeProgress(t.id);
@@ -786,7 +846,20 @@ function renderDashboard() {
           <span>${w.c.icone} ${w.c.titre}</span>
           <span class="weak-meta">${w.review ? '🔖 ' : ''}${w.total ? Math.round(w.rate * 100) + "% d'erreurs" : 'à revoir'}</span>
         </button>`).join('')}</div>
+      <div class="save-actions"><a class="btn btn-primary" href="#/revise">🔁 Lancer une révision ciblée</a></div>
     </section>` : '<section class="chapter-section"><h2>🎯 Ce qui coince</h2><p class="muted">Rien à signaler pour l\'instant — continue comme ça ! 💪</p></section>'}
+
+    ${errBy.length ? `
+    <section class="chapter-section">
+      <h2>📋 Bilan d'erreurs par domaine</h2>
+      <div class="errbar-list">${errBy.map((e) => `
+        <div class="errbar-row">
+          <span class="errbar-name">${e.t.icone} ${e.t.label}</span>
+          <span class="errbar-track"><span class="errbar-fill" style="width:${Math.round(e.rate * 100)}%"></span></span>
+          <span class="errbar-pct">${Math.round(e.rate * 100)}% · ${e.ko}/${e.total}</span>
+        </div>`).join('')}</div>
+      <p class="muted">Pourcentage d'erreurs (réponses fausses) par domaine — vise à le faire baisser. 📉</p>
+    </section>` : ''}
 
     <section class="chapter-section">
       <h2>🧭 Maîtrise par chapitre</h2>
@@ -803,19 +876,28 @@ function renderDashboard() {
 
     <section class="chapter-section">
       <h2>💾 Sauvegarde</h2>
-      <p class="muted">Ta progression est stockée sur cet appareil. Pour la transférer sur un autre téléphone/ordi, copie ta sauvegarde ici puis colle-la sur l'autre appareil.</p>
+      <p class="muted">Ta progression est stockée sur cet appareil. Pour la transférer sur un autre téléphone/ordi, le plus simple est le <strong>QR</strong> : affiche-le ici, scanne-le avec l'autre appareil.</p>
       <div class="save-actions">
-        <button class="btn btn-primary" data-act="copy">📋 Copier ma sauvegarde</button>
+        <button class="btn btn-primary" data-act="qr">📱 Transférer par QR</button>
+        <button class="btn btn-ghost" data-act="copy">📋 Copier le texte</button>
         <button class="btn btn-ghost" data-act="download">⬇️ Télécharger (fichier)</button>
         <label class="btn btn-ghost">⬆️ Importer un fichier<input type="file" accept="application/json" hidden data-act="file"></label>
       </div>
-      <textarea class="save-box" data-box placeholder="Colle ici une sauvegarde puis clique « Restaurer »…"></textarea>
+      <div class="save-qr" data-qr hidden></div>
+      <details class="save-advanced">
+        <summary>Transfert par texte (avancé)</summary>
+        <textarea class="save-box" data-box placeholder="Colle ici une sauvegarde puis clique « Restaurer »…"></textarea>
+        <div class="save-actions">
+          <button class="btn btn-primary" data-act="restore">♻️ Restaurer</button>
+        </div>
+      </details>
       <div class="save-actions">
-        <button class="btn btn-primary" data-act="restore">♻️ Restaurer</button>
         <button class="btn btn-danger" data-act="reset">🗑️ Réinitialiser ma progression</button>
       </div>
       <p class="save-msg" data-msg aria-live="polite"></p>
     </section>
+
+    <p class="dash-footlink"><a href="#/diagnostic">🩺 Diagnostic de l'application</a></p>
   `;
 
   root.querySelector('[data-back]').addEventListener('click', () => navigate('#/'));
@@ -851,16 +933,39 @@ function renderDashboard() {
     a.download = `maths3eme-sauvegarde-${ymd()}.json`; a.click(); URL.revokeObjectURL(a.href);
     say('Fichier téléchargé. ✓');
   });
+  const summarize = (s) => `Sauvegarde restaurée ! ${s.xp} XP · ${s.chapters} chapitre(s) · ${s.badges} badge(s). ✓`;
   root.querySelector('[data-act="file"]').addEventListener('change', (e) => {
     const f = e.target.files[0]; if (!f) return;
     const r = new FileReader();
-    r.onload = () => { try { Store.importJSON(r.result); say('Sauvegarde restaurée ! ✓'); refreshTopbar(); setTimeout(() => renderDashboard(), 400); } catch (err) { say('Fichier invalide.', false); } };
+    r.onload = () => { try { const s = Store.importJSON(r.result); say(summarize(s)); refreshTopbar(); setTimeout(() => renderDashboard(), 600); } catch (err) { say('Fichier invalide.', false); } };
     r.readAsText(f);
   });
   root.querySelector('[data-act="restore"]').addEventListener('click', () => {
     if (!box.value.trim()) { say('Colle d\'abord une sauvegarde dans le cadre.', false); return; }
-    try { Store.importJSON(box.value.trim()); say('Sauvegarde restaurée ! ✓'); refreshTopbar(); setTimeout(() => renderDashboard(), 400); }
+    try { const s = Store.importJSON(box.value.trim()); say(summarize(s)); refreshTopbar(); setTimeout(() => renderDashboard(), 600); }
     catch (e) { say('Sauvegarde invalide.', false); }
+  });
+  // Transfert par QR : encode un lien profond #/restore?d=… que l'autre
+  // appareil ouvre via son appareil photo natif (iOS + Android), sans scanner.
+  const qrBox = root.querySelector('[data-qr]');
+  root.querySelector('[data-act="qr"]').addEventListener('click', async () => {
+    if (!qrBox.hidden) { qrBox.hidden = true; qrBox.innerHTML = ''; return; }
+    qrBox.hidden = false;
+    qrBox.innerHTML = '<p class="loading">Génération du QR…</p>';
+    try {
+      const payload = btoa(unescape(encodeURIComponent(Store.exportCompact()))).replace(/\+/g, '-').replace(/\//g, '_');
+      const base = location.href.split('#')[0];
+      const url = `${base}#/restore?d=${payload}`;
+      const qr = await makeQR(url);
+      qrBox.innerHTML = `
+        <div class="qr-card">
+          ${qr}
+          <p class="muted">📷 Scanne ce code avec l'appareil photo de l'autre téléphone/ordi : il ouvrira l'appli avec ta progression.</p>
+        </div>`;
+    } catch (e) {
+      console.warn('[qr]', e);
+      qrBox.innerHTML = `<p class="notice">Impossible de générer le QR (hors-ligne ?). Utilise « Copier le texte » ou « Télécharger ».</p>`;
+    }
   });
   root.querySelector('[data-act="reset"]').addEventListener('click', () => {
     if (confirm('Effacer toute la progression sur cet appareil ? Cette action est irréversible.')) {
@@ -1089,6 +1194,357 @@ async function renderExamen() {
       if (note) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = `Temps : ${tEl.textContent}`; note.appendChild(p); }
     },
   }, { mode: 'examen' });
+}
+
+// ---------------------------------------------------------------------
+//  Brevet blanc — vrais problèmes (situation + sous-questions enchaînées)
+// ---------------------------------------------------------------------
+
+/**
+ * Monte un problème (situation + sous-questions) dans un conteneur.
+ * @returns {Object} API { grade() → {score,total,ok}, element }
+ *   grade() lit les réponses, marque chaque question ✓/✗, révèle le corrigé
+ *   et renvoie le score. Idempotent (re-corrige si rappelé).
+ */
+function mountProbleme(host, inst, opts = {}) {
+  const wrap = document.createElement('article');
+  wrap.className = 'brevet-pb';
+  wrap.innerHTML = `
+    <header class="brevet-pb-head">
+      <h3>${opts.index ? opts.index + '. ' : ''}${inst.titre}</h3>
+      <span class="brevet-pb-meta">${inst.domaine} · ${inst.baremeTotal} pts</span>
+    </header>
+    <div class="brevet-contexte">${inst.contexte}</div>
+    <div class="brevet-figure" data-figure hidden></div>
+    <ol class="brevet-questions">
+      ${inst.questions.map((q, i) => `
+        <li class="brevet-q" data-q="${i}">
+          <div class="brevet-q-enonce">${q.enonce}</div>
+          <div class="brevet-answer">
+            <input type="text" class="answer-input" data-input="${i}" inputmode="text"
+                   autocomplete="off" autocapitalize="off" spellcheck="false"
+                   placeholder="${q.placeholder || 'Ta réponse…'}" aria-label="Réponse question ${i + 1}">
+            ${q.unite ? `<span class="brevet-unite">${q.unite}</span>` : ''}
+            <span class="brevet-pts">${q.points} pt${q.points > 1 ? 's' : ''}</span>
+          </div>
+          ${q.indice ? `<details class="brevet-indice"><summary>💡 Indice</summary><div>${q.indice}</div></details>` : ''}
+          <div class="brevet-q-result" data-result="${i}" hidden></div>
+        </li>`).join('')}
+    </ol>`;
+  host.appendChild(wrap);
+
+  // Figure éventuelle (rendu différé : l'élément doit être attaché au DOM).
+  if (typeof inst.figure === 'function') {
+    const figHost = wrap.querySelector('[data-figure]');
+    figHost.hidden = false;
+    requestAnimationFrame(() => { try { inst.figure(figHost); } catch (e) { console.error('[brevet] figure :', e); } });
+  }
+  renderMath(wrap);
+
+  let graded = false;
+  function grade() {
+    let score = 0;
+    inst.questions.forEach((q, i) => {
+      const inp = wrap.querySelector(`[data-input="${i}"]`);
+      const res = wrap.querySelector(`[data-result="${i}"]`);
+      const ok = checkAnswer(inp.value, { reponse: q.reponse, validation: q.validation, accepte: q.accepte, tolerance: q.tolerance });
+      if (ok) score += (q.points || 1);
+      inp.disabled = true;
+      inp.classList.toggle('is-correct', ok);
+      inp.classList.toggle('is-wrong', !ok);
+      res.hidden = false;
+      res.innerHTML = `<p class="${ok ? 'brevet-ok' : 'brevet-ko'}">${ok ? '✅ Correct' : '❌ À revoir'} (${ok ? q.points : 0}/${q.points})</p>
+        <div class="brevet-corrige">${q.corrige || ''}</div>`;
+      renderMath(res);
+    });
+    graded = true;
+    // Suivi : enregistre la réussite du problème dans les chapitres liés.
+    const fullyOk = score === inst.baremeTotal;
+    (inst.chapitres || []).forEach((chId) => { try { Store.recordAttempt(chId, 'brevet:' + inst.id, fullyOk); } catch (e) {} });
+    return { score, total: inst.baremeTotal, ok: fullyOk };
+  }
+  return { grade, isGraded: () => graded, element: wrap };
+}
+
+async function renderBrevet() {
+  const root = app();
+  root.removeAttribute('data-theme');
+  if (examTimer) { clearInterval(examTimer); examTimer = null; }
+  const params = new URLSearchParams((location.hash.split('?')[1]) || '');
+  const sujet = params.get('sujet');
+  const pbId = params.get('pb');
+
+  let mod;
+  root.innerHTML = `<p class="loading">Préparation du brevet…</p>`;
+  try { mod = await import('./brevet.js'); }
+  catch (e) { console.error(e); root.innerHTML = `<p class="notice">Erreur de chargement du brevet. <a href="#/">Retour</a></p>`; return; }
+  const { PROBLEMES, genererProbleme } = mod;
+
+  // — Accueil du brevet : choisir un sujet complet ou un problème ciblé —
+  if (!sujet && !pbId) {
+    const cards = PROBLEMES.map((p) => `
+      <button class="chapter-card" data-pb="${p.id}">
+        <div class="cc-num">${p.domaine}</div>
+        <div class="cc-title">${p.titre}</div>
+        <div class="cc-status">~${p.dureeMin} min · s'entraîner →</div>
+      </button>`).join('');
+    root.innerHTML = `
+      <button class="btn btn-ghost btn-back" data-back>← Accueil</button>
+      <header class="dash-hero">
+        <h1>📄 Brevet blanc</h1>
+        <p class="muted">De vrais problèmes comme au Diplôme National du Brevet : une situation concrète,
+          plusieurs questions qui s'enchaînent, un barème et un corrigé détaillé. Tu rédiges, puis tu corriges.</p>
+      </header>
+      <section class="chapter-section">
+        <h2>📝 Sujet complet</h2>
+        <p class="muted">5 problèmes tirés au hasard sur tout le programme, avec chrono et note sur 20.</p>
+        <button class="btn btn-primary" data-sujet>🎓 Commencer un sujet complet</button>
+      </section>
+      <section class="chapter-section">
+        <h2>🎯 S'entraîner problème par problème</h2>
+        <div class="chapter-grid">${cards}</div>
+      </section>`;
+    root.querySelector('[data-back]').addEventListener('click', () => navigate('#/'));
+    root.querySelector('[data-sujet]').addEventListener('click', () => navigate('#/brevet?sujet=complet'));
+    root.querySelectorAll('[data-pb]').forEach((b) => b.addEventListener('click', () => navigate(`#/brevet?pb=${b.dataset.pb}`)));
+    return;
+  }
+
+  // — Sélection des problèmes —
+  let chosen;
+  if (pbId) {
+    const p = PROBLEMES.find((x) => x.id === pbId);
+    chosen = p ? [p] : [];
+  } else {
+    const shuffled = [...PROBLEMES];
+    for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
+    chosen = shuffled.slice(0, Math.min(5, shuffled.length));
+  }
+  if (!chosen.length) { root.innerHTML = `<p class="notice">Problème introuvable. <a href="#/brevet">Retour</a></p>`; return; }
+
+  const instances = chosen.map(genererProbleme);
+  const baremeGlobal = instances.reduce((s, p) => s + p.baremeTotal, 0);
+  const isSujet = !pbId;
+
+  root.innerHTML = `
+    <button class="btn btn-ghost btn-back" data-back>← Quitter</button>
+    <header class="brevet-hero">
+      <h1>📄 ${isSujet ? 'Sujet de brevet blanc' : instances[0].titre}</h1>
+      <div class="brevet-hero-meta">
+        <span class="brevet-bareme">Barème : ${baremeGlobal} points</span>
+        ${isSujet ? '<span class="exam-timer" data-timer>00:00</span>' : ''}
+      </div>
+    </header>
+    <p class="muted no-print">Rédige tes réponses sur une feuille, saisis tes résultats, puis clique sur « Corriger ».
+      Une calculatrice est autorisée.</p>
+    <div class="brevet-host"></div>
+    <div class="brevet-foot no-print">
+      <button class="btn btn-primary" data-correct>✅ Corriger ${isSujet ? 'le sujet' : 'le problème'}</button>
+    </div>
+    <div class="brevet-result" data-bilan hidden></div>`;
+  root.querySelector('[data-back]').addEventListener('click', () => { if (examTimer) { clearInterval(examTimer); examTimer = null; } navigate('#/brevet'); });
+
+  const host = root.querySelector('.brevet-host');
+  const controllers = instances.map((inst, i) => mountProbleme(host, inst, { index: isSujet ? i + 1 : 0 }));
+
+  // Chrono (sujet complet uniquement)
+  let sec = 0;
+  if (isSujet) {
+    const tEl = root.querySelector('[data-timer]');
+    examTimer = setInterval(() => { sec++; tEl.textContent = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`; }, 1000);
+  }
+
+  const correctBtn = root.querySelector('[data-correct]');
+  correctBtn.addEventListener('click', () => {
+    if (examTimer) { clearInterval(examTimer); examTimer = null; }
+    let score = 0;
+    controllers.forEach((c) => { score += c.grade().score; });
+    const note20 = baremeGlobal ? Math.round((score / baremeGlobal) * 20 * 10) / 10 : 0;
+    const xpGain = score * 5 + (note20 >= 10 ? 40 : 0);
+    Store.addXP(xpGain);
+    if (isSujet && note20 >= 10) Store.markExamPassed();
+
+    const bilan = root.querySelector('[data-bilan]');
+    bilan.hidden = false;
+    const appreciation = note20 >= 16 ? 'Excellent, niveau brevet assuré ! 🌟'
+      : note20 >= 12 ? 'Très bien — continue comme ça ! 💪'
+      : note20 >= 10 ? 'C\'est acquis, peaufine les derniers points. 👍'
+      : 'Reprends les corrigés ci-dessus, puis retente. Tu vas y arriver ! 🌱';
+    bilan.innerHTML = `
+      <div class="brevet-bilan-card">
+        <h2>Bilan ${isSujet ? 'du sujet' : ''}</h2>
+        <p class="brevet-note"><strong>${score} / ${baremeGlobal}</strong> points — soit <strong>${note20} / 20</strong></p>
+        ${isSujet ? `<p class="muted">Temps : ${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')} · +${xpGain} XP</p>` : `<p class="muted">+${xpGain} XP</p>`}
+        <p>${appreciation}</p>
+        <div class="brevet-bilan-actions no-print">
+          <button class="btn btn-primary" data-retry>🔄 ${isSujet ? 'Nouveau sujet' : 'Rejouer'}</button>
+          <button class="btn btn-ghost" data-print>🖨️ Imprimer / PDF</button>
+          <a class="btn btn-ghost" href="#/brevet">📄 Autres problèmes</a>
+        </div>
+      </div>`;
+    renderMath(bilan);
+    correctBtn.disabled = true;
+    if (note20 >= 10) confetti();
+    bilan.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    bilan.querySelector('[data-retry]').addEventListener('click', () => { renderBrevet(); });
+    bilan.querySelector('[data-print]').addEventListener('click', () => window.print());
+  });
+}
+
+// ---------------------------------------------------------------------
+//  Révision espacée — re-travaille en priorité ce qui coince
+// ---------------------------------------------------------------------
+
+async function renderRevise() {
+  const root = app();
+  root.removeAttribute('data-theme');
+
+  // Sélection des chapitres : d'abord ceux qui coincent, sinon ceux commencés
+  // mais pas maîtrisés, sinon les chapitres prioritaires.
+  let sources = Store.weakChapters().map((w) => w.c).filter((c) => c && c.module);
+  if (sources.length < 2) {
+    const started = CHAPTERS.filter((c) => c.module && Store.mastery(c.id) < 100 && (Store.chapter(c.id).xp > 0 || Object.keys(Store.chapter(c.id).exercices).length > 0));
+    sources = [...new Set([...sources, ...started])];
+  }
+  if (!sources.length) sources = CHAPTERS.filter((c) => c.module && c.priorite);
+  sources = sources.slice(0, 4);
+
+  root.innerHTML = `<p class="loading">Préparation de ta révision…</p>`;
+  const pool = [];
+  for (const c of sources) {
+    try {
+      const chap = await loadChapter(c);
+      (chap.exercices || []).forEach((ex) => pool.push({ ex, meta: c }));
+    } catch (e) { /* ignore */ }
+  }
+  // Priorise les chapitres à fort taux d'erreur, puis mélange l'ordre des exos.
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  const session = pool.slice(0, Math.min(8, pool.length));
+
+  if (!session.length) {
+    root.innerHTML = `<button class="btn btn-ghost btn-back" data-back>← Accueil</button>
+      <header class="dash-hero"><h1>🔁 Révision</h1><p class="muted">Commence quelques chapitres : ta révision personnalisée apparaîtra ici.</p></header>`;
+    root.querySelector('[data-back]').addEventListener('click', () => navigate('#/'));
+    return;
+  }
+
+  const noms = [...new Set(session.map((s) => s.meta.titre))];
+  root.innerHTML = `
+    <button class="btn btn-ghost btn-back" data-back>← Accueil</button>
+    <header class="dash-hero">
+      <h1>🔁 Révision du jour</h1>
+      <p class="muted">${session.length} exercices ciblés sur ce qui coince : <strong>${noms.join('</strong>, <strong>')}</strong>.
+        Chaque bonne réponse rapproche ces chapitres de la maîtrise.</p>
+    </header>
+    <section class="chapter-section"><div class="exos-host revise-host"></div></section>`;
+  root.querySelector('[data-back]').addEventListener('click', () => navigate('#/'));
+
+  const host = root.querySelector('.revise-host');
+  session.forEach(({ ex, meta }) => {
+    const tag = document.createElement('div');
+    tag.className = 'revise-tag';
+    tag.innerHTML = `<span>${meta.icone} ${meta.titre}</span>`;
+    host.appendChild(tag);
+    mountExercise(host, ex, {
+      onCorrect: (xp) => { Store.bumpDaily(); Store.addXP(xp, meta.id); },
+      onAttempt: (exId, ok) => Store.recordAttempt(meta.id, exId, ok),
+    });
+  });
+  renderMath(root);
+}
+
+// ---------------------------------------------------------------------
+//  Restauration par lien profond (#/restore?d=…) — utilisé par le QR
+// ---------------------------------------------------------------------
+
+function renderRestore() {
+  const root = app();
+  root.removeAttribute('data-theme');
+  const params = new URLSearchParams((location.hash.split('?')[1]) || '');
+  const d = params.get('d');
+  let summary = null, error = null;
+  if (d) {
+    try {
+      const json = decodeURIComponent(escape(atob(d.replace(/-/g, '+').replace(/_/g, '/'))));
+      summary = Store.importJSON(json);
+    } catch (e) { error = e; }
+  }
+  root.innerHTML = `
+    <button class="btn btn-ghost btn-back" data-back>← Accueil</button>
+    <header class="dash-hero"><h1>📥 Restauration de sauvegarde</h1></header>
+    <section class="chapter-section">
+      ${!d ? `<p class="notice">Aucune donnée à restaurer dans ce lien.</p>`
+        : error ? `<p class="notice">❌ Ce lien de sauvegarde est invalide ou incomplet.</p>`
+        : `<p class="save-msg is-ok">✅ Sauvegarde restaurée sur cet appareil !</p>
+           <p>Tu repars avec <strong>${summary.xp} XP</strong> (niveau ${Store.level()}),
+              <strong>${summary.chapters}</strong> chapitre(s) suivi(s)
+              et <strong>${summary.badges}</strong> badge(s).</p>`}
+      <div class="save-actions">
+        <a class="btn btn-primary" href="#/">▶️ Continuer</a>
+        <a class="btn btn-ghost" href="#/tableau">📊 Voir mon tableau de bord</a>
+      </div>
+    </section>`;
+  root.querySelector('[data-back]').addEventListener('click', () => navigate('#/'));
+  if (summary) { refreshTopbar(); }
+}
+
+// ---------------------------------------------------------------------
+//  Diagnostic — auto-test des générateurs et QCM de tous les chapitres
+// ---------------------------------------------------------------------
+
+async function renderDiagnostic() {
+  const root = app();
+  root.removeAttribute('data-theme');
+  root.innerHTML = `
+    <button class="btn btn-ghost btn-back" data-back>← Accueil</button>
+    <header class="dash-hero"><h1>🩺 Diagnostic</h1>
+      <p class="muted">Vérifie automatiquement que tous les exercices et quiz se génèrent et se corrigent sans erreur.</p></header>
+    <section class="chapter-section">
+      <button class="btn btn-primary" data-run>▶️ Lancer le diagnostic</button>
+      <div class="diag-report" data-report></div>
+    </section>`;
+  root.querySelector('[data-back]').addEventListener('click', () => navigate('#/'));
+  const report = root.querySelector('[data-report]');
+
+  root.querySelector('[data-run]').addEventListener('click', async () => {
+    report.innerHTML = '<p class="loading">Analyse en cours…</p>';
+    const problems = [];
+    let exGen = 0, quizGen = 0, qcm = 0, chaptersOk = 0;
+    for (const meta of CHAPTERS.filter((c) => c.module)) {
+      let chap;
+      try { chap = await loadChapter(meta); }
+      catch (e) { problems.push(`${meta.id} : import impossible (${e.message})`); continue; }
+      chaptersOk++;
+      const checkChoix = (st, where) => {
+        if (!Array.isArray(st.choix)) return;
+        qcm++;
+        if (st.choix.length < 2) problems.push(`${where} : moins de 2 choix`);
+        if (typeof st.correct !== 'number' || st.correct < 0 || st.correct >= st.choix.length) problems.push(`${where} : index correct hors borne`);
+      };
+      for (const ex of (chap.exercices || [])) {
+        for (let t = 0; t < 25; t++) {
+          try { const st = ex.generer ? ex.generer() : ex; if (ex.generer) exGen++; checkChoix(st, `${meta.id}/${ex.id}`); }
+          catch (e) { problems.push(`${meta.id}/${ex.id} : générateur en échec (${e.message})`); break; }
+        }
+      }
+      for (const q of (chap.quiz_bilan || [])) {
+        for (let t = 0; t < 25; t++) {
+          try { const st = q.generer ? q.generer() : q; if (q.generer) quizGen++; checkChoix(st, `${meta.id}/quiz`); }
+          catch (e) { problems.push(`${meta.id}/quiz : générateur en échec (${e.message})`); break; }
+        }
+      }
+    }
+    const ok = problems.length === 0;
+    report.innerHTML = `
+      <div class="diag-summary ${ok ? 'diag-ok' : 'diag-ko'}">
+        <span class="diag-ico">${ok ? '✅' : '⚠️'}</span>
+        <div>
+          <strong>${ok ? 'Tout fonctionne !' : problems.length + ' anomalie(s) détectée(s)'}</strong>
+          <p class="muted">${chaptersOk} chapitres · ${exGen} tirages d'exercices · ${quizGen} tirages de quiz · ${qcm} QCM vérifiés</p>
+        </div>
+      </div>
+      ${ok ? '' : `<ul class="diag-list">${problems.map((p) => `<li>❌ ${p}</li>`).join('')}</ul>`}`;
+  });
 }
 
 // ---------------------------------------------------------------------

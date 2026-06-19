@@ -561,3 +561,84 @@ html[data-mode="dark"] .bloc-exemple { background: var(--surface); }
 html[data-mode="dark"] .hint { background: #2c2718; }
 html[data-mode="dark"] .svg-plot, html[data-mode="dark"] .jxg-board { background: var(--surface-2); }
 html[data-mode="dark"] img, html[data-mode="dark"] .svg-plot { filter: none; }
+
+/* =====================================================================
+   Brevet blanc (problèmes multi-parties)
+   ===================================================================== */
+.brevet-hero { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+  background: linear-gradient(135deg, var(--accent-soft), var(--surface)); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1rem 1.2rem; margin-bottom: 1rem; }
+.brevet-hero h1 { font-size: 1.35rem; margin: 0; }
+.brevet-hero-meta { display: flex; align-items: center; gap: 0.6rem; }
+.brevet-bareme { font-weight: 700; color: var(--accent-ink); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 0.2rem 0.7rem; font-size: 0.9rem; }
+
+.brevet-pb { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.2rem; margin-bottom: 1.1rem; box-shadow: var(--shadow); break-inside: avoid; }
+.brevet-pb-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 0.7rem; }
+.brevet-pb-head h3 { font-size: 1.15rem; margin: 0; }
+.brevet-pb-meta { font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
+.brevet-contexte { margin-bottom: 0.6rem; }
+.brevet-contexte ul, .brevet-contexte ol { margin: 0.4rem 0 0.4rem 1.2rem; }
+.brevet-contexte li { margin-bottom: 0.2rem; }
+.brevet-data { font-weight: 700; letter-spacing: 0.04em; background: var(--surface-2); border-radius: var(--radius-sm); padding: 0.5rem 0.7rem; text-align: center; }
+.brevet-prog { margin: 0.3rem 0 0.3rem 1.2rem; }
+.fig-brevet { max-width: 340px; margin: 0.4rem auto; display: block; }
+.brevet-figure { display: flex; justify-content: center; }
+
+.brevet-questions { list-style: none; counter-reset: none; padding: 0; margin: 0; }
+.brevet-q { border-top: 1px dashed var(--border); padding: 0.7rem 0; }
+.brevet-q:first-child { border-top: 0; }
+.brevet-q-enonce p { margin: 0 0 0.4rem; }
+.brevet-answer { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.brevet-answer .answer-input { flex: 1 1 160px; min-width: 120px; min-height: 42px; padding: 0.4rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
+.brevet-answer .answer-input.is-correct { border-color: var(--ok); background: var(--ok-bg); }
+.brevet-answer .answer-input.is-wrong { border-color: var(--err); background: var(--err-bg); }
+.brevet-unite { font-weight: 700; color: var(--muted); }
+.brevet-pts { margin-left: auto; font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+.brevet-indice { margin-top: 0.4rem; font-size: 0.9rem; }
+.brevet-indice summary { cursor: pointer; color: var(--accent-ink); }
+.brevet-indice > div { padding: 0.4rem 0.2rem; color: var(--muted); }
+.brevet-q-result { margin-top: 0.5rem; padding: 0.5rem 0.7rem; border-radius: var(--radius-sm); background: var(--surface-2); }
+.brevet-ok { color: var(--ok); font-weight: 700; margin: 0 0 0.3rem; }
+.brevet-ko { color: var(--err); font-weight: 700; margin: 0 0 0.3rem; }
+.brevet-corrige { font-size: 0.95rem; }
+.brevet-corrige p { margin: 0.2rem 0; }
+.brevet-foot { margin: 0.5rem 0 1rem; }
+.brevet-bilan-card { background: linear-gradient(135deg, var(--accent-soft), var(--surface)); border: 1px solid var(--accent); border-radius: var(--radius); padding: 1.2rem; text-align: center; }
+.brevet-note { font-size: 1.4rem; margin: 0.4rem 0; }
+.brevet-note strong { color: var(--accent-ink); }
+.brevet-bilan-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-top: 0.8rem; }
+
+/* --- Révision ciblée --- */
+.revise-tag { font-weight: 700; color: var(--accent-ink); margin: 1rem 0 0.2rem; }
+.revise-tag:first-child { margin-top: 0; }
+
+/* --- Bilan d'erreurs par domaine --- */
+.errbar-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.errbar-row { display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; }
+.errbar-name { flex: 0 0 38%; }
+.errbar-track { flex: 1; height: 10px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+.errbar-fill { display: block; height: 100%; background: var(--err); border-radius: 999px; }
+.errbar-pct { flex: 0 0 auto; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* --- Diagnostic --- */
+.diag-report { margin-top: 0.8rem; }
+.diag-summary { display: flex; align-items: center; gap: 0.8rem; padding: 0.9rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.diag-summary.diag-ok { background: var(--ok-bg); border-color: var(--ok); }
+.diag-summary.diag-ko { background: var(--err-bg); border-color: var(--err); }
+.diag-ico { font-size: 1.8rem; }
+.diag-list { margin: 0.8rem 0 0 1.1rem; color: var(--err); font-size: 0.9rem; }
+.dash-footlink { text-align: center; margin-top: 1.2rem; font-size: 0.85rem; }
+
+/* --- Transfert par QR --- */
+.save-qr { margin: 0.8rem 0; }
+.qr-card { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
+.qr-card svg { width: 220px; height: 220px; background: #fff; border-radius: var(--radius-sm); padding: 8px; }
+.qr-card .muted { text-align: center; max-width: 280px; }
+.save-advanced { margin: 0.5rem 0; }
+.save-advanced summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
+
+@media print {
+  .brevet-pb { border: 0; box-shadow: none; padding: 0; margin-bottom: 1.4rem; }
+  .brevet-answer .answer-input { border: 0; background: transparent; }
+  .brevet-hero { background: #fff; border: 0; }
+}
