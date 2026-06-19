@@ -637,6 +637,14 @@ html[data-mode="dark"] img, html[data-mode="dark"] .svg-plot { filter: none; }
 .save-advanced { margin: 0.5rem 0; }
 .save-advanced summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
 
+/* --- Sauvegarde en ligne (cloud) --- */
+.cloud-input { flex: 1 1 200px; min-width: 140px; min-height: 42px; padding: 0.4rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
+.cloud-code-row { display: flex; align-items: end; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+.cloud-code-row label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; font-weight: 600; }
+.cloud-code { font-family: monospace; font-size: 1.2rem; letter-spacing: 0.15em; text-transform: uppercase; max-width: 180px; }
+.cloud-auto { display: flex; align-items: center; gap: 0.5rem; margin: 0.6rem 0; font-size: 0.9rem; }
+.cloud-config { background: var(--surface-2); border-radius: var(--radius-sm); padding: 0.7rem 0.9rem; margin-bottom: 0.6rem; }
+
 @media print {
   .brevet-pb { border: 0; box-shadow: none; padding: 0; margin-bottom: 1.4rem; }
   .brevet-answer .answer-input { border: 0; background: transparent; }

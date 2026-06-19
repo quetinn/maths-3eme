@@ -96,7 +96,7 @@ const Store = {
     } catch (e) { console.warn('[store] lecture impossible', e); }
     // défauts pour les champs ajoutés en v2
     this.data.streak = this.data.streak || { count: 0, lastDay: null };
-    this.data.settings = Object.assign({ theme: 'auto', font: 'normal' }, this.data.settings || {});
+    this.data.settings = Object.assign({ theme: 'auto', font: 'normal', cloudCode: null, cloudAuto: false }, this.data.settings || {});
     this.data.history = this.data.history || [];
     this.data.achievements = this.data.achievements || {};
     this.data.daily = this.data.daily || { d: null, count: 0 };
@@ -105,6 +105,7 @@ const Store = {
   save() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(this.data)); }
     catch (e) { console.warn('[store] sauvegarde impossible', e); }
+    scheduleCloudSync(); // pousse en ligne (anti-rebond) si la synchro auto est active
   },
 
   chapter(id) {
@@ -479,6 +480,63 @@ async function makeQR(text) {
   qr.addData(text);
   qr.make();
   return qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+}
+
+// ---------------------------------------------------------------------
+//  Sauvegarde en ligne (cloud) — stockage clé-valeur simple
+//  Modèle « code de récupération » : la progression est rangée en ligne
+//  sous un petit code ; il suffit de retaper ce code sur un autre appareil.
+//
+//  Aucun secret dans le dépôt : l'URL du « bucket » se configure dans l'app
+//  (champ dans le tableau de bord) et se stocke en local. Pour une config
+//  zéro côté élève, on peut aussi coller l'URL dans CLOUD_BASE_BUILTIN.
+//
+//  Contrat REST attendu (compatible kvdb.io / jsonstorage clé par chemin) :
+//    PUT  <base>/<code>   body = JSON de la sauvegarde   → 200
+//    GET  <base>/<code>                                  → JSON (ou 404)
+// ---------------------------------------------------------------------
+
+const CLOUD_BASE_BUILTIN = ''; // ← (option) URL du bucket, ex: 'https://kvdb.io/AbCdEf…'
+function cloudBase() { return CLOUD_BASE_BUILTIN || localStorage.getItem('maths3eme_cloud') || ''; }
+function setCloudBase(url) { localStorage.setItem('maths3eme_cloud', (url || '').trim().replace(/\/+$/, '')); }
+
+// Code lisible (sans caractères ambigus : 0/O, 1/I/L…).
+function genCloudCode() {
+  const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let c = ''; for (let i = 0; i < 6; i++) c += A[Math.floor(Math.random() * A.length)];
+  return c;
+}
+
+const Cloud = {
+  configured() { return !!cloudBase(); },
+  async save(code, jsonString) {
+    const r = await fetch(`${cloudBase()}/${encodeURIComponent(code)}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: jsonString,
+    });
+    if (!r.ok) throw new Error('Échec de la sauvegarde en ligne (' + r.status + ')');
+  },
+  async load(code) {
+    const r = await fetch(`${cloudBase()}/${encodeURIComponent(code)}`);
+    if (r.status === 404) throw new Error('Aucune sauvegarde pour ce code.');
+    if (!r.ok) throw new Error('Lecture en ligne impossible (' + r.status + ')');
+    const txt = (await r.text()).trim();
+    if (!txt) throw new Error('Aucune sauvegarde pour ce code.');
+    return txt;
+  },
+};
+
+// Synchro automatique (anti-rebond) : après chaque progrès, si un code est
+// défini et la synchro activée, on pousse la sauvegarde au bout de 3 s.
+let _cloudTimer = null;
+function scheduleCloudSync() {
+  const s = Store.data.settings;
+  if (!Cloud.configured() || !s || !s.cloudCode || !s.cloudAuto) return;
+  clearTimeout(_cloudTimer);
+  _cloudTimer = setTimeout(() => {
+    Cloud.save(s.cloudCode, Store.exportJSON())
+      .then(() => { const b = document.querySelector('[data-cloud-status]'); if (b) { b.textContent = '☁️ Synchronisé ✓'; b.className = 'save-msg is-ok'; } })
+      .catch((e) => console.warn('[cloud] synchro auto échouée', e));
+  }, 3000);
 }
 
 // ---------------------------------------------------------------------
@@ -897,6 +955,37 @@ function renderDashboard() {
       <p class="save-msg" data-msg aria-live="polite"></p>
     </section>
 
+    <section class="chapter-section">
+      <h2>☁️ Sauvegarde en ligne</h2>
+      <p class="muted">Sauvegarde ta progression sur Internet avec un petit <strong>code</strong>.
+        Sur un autre appareil, tape ce même code pour tout récupérer — pratique pour passer du téléphone à l'ordi.</p>
+      <div class="cloud-config" data-cloud-config ${Cloud.configured() ? 'hidden' : ''}>
+        <p class="muted">⚙️ Première utilisation : colle ici l'adresse de ton espace de stockage (ton « bucket » kvdb.io).</p>
+        <div class="save-actions">
+          <input type="text" class="cloud-input" data-cloud-base placeholder="https://kvdb.io/XXXXXXXX" inputmode="url" autocomplete="off">
+          <button class="btn btn-ghost" data-act="cloud-setbase">Enregistrer l'adresse</button>
+        </div>
+      </div>
+      <div class="cloud-main" data-cloud-main ${Cloud.configured() ? '' : 'hidden'}>
+        <div class="cloud-code-row">
+          <label>Mon code <input type="text" class="cloud-input cloud-code" data-cloud-code value="${Store.data.settings.cloudCode || ''}" placeholder="(aucun)" maxlength="12" autocomplete="off" spellcheck="false"></label>
+          <button class="btn btn-ghost" data-act="cloud-gen" title="Générer un nouveau code">🎲 Nouveau code</button>
+        </div>
+        <div class="save-actions">
+          <button class="btn btn-primary" data-act="cloud-save">☁️⬆️ Sauvegarder en ligne</button>
+          <button class="btn btn-ghost" data-act="cloud-load">☁️⬇️ Récupérer avec ce code</button>
+        </div>
+        <label class="cloud-auto"><input type="checkbox" data-cloud-auto ${Store.data.settings.cloudAuto ? 'checked' : ''}> Synchroniser automatiquement après chaque progrès</label>
+        <p class="save-msg" data-cloud-status aria-live="polite"></p>
+        <details class="save-advanced"><summary>Changer d'espace de stockage</summary>
+          <div class="save-actions">
+            <input type="text" class="cloud-input" data-cloud-base value="${cloudBase()}" placeholder="https://kvdb.io/XXXXXXXX" inputmode="url" autocomplete="off">
+            <button class="btn btn-ghost" data-act="cloud-setbase">Mettre à jour</button>
+          </div>
+        </details>
+      </div>
+    </section>
+
     <p class="dash-footlink"><a href="#/diagnostic">🩺 Diagnostic de l'application</a></p>
   `;
 
@@ -971,6 +1060,47 @@ function renderDashboard() {
     if (confirm('Effacer toute la progression sur cet appareil ? Cette action est irréversible.')) {
       Store.reset(); say('Progression réinitialisée.'); refreshTopbar(); setTimeout(() => renderDashboard(), 400);
     }
+  });
+
+  // — Sauvegarde en ligne (cloud) —
+  const cstatus = root.querySelector('[data-cloud-status]');
+  const csay = (t, ok = true) => { if (cstatus) { cstatus.textContent = t; cstatus.className = 'save-msg ' + (ok ? 'is-ok' : 'is-err'); } };
+  const codeInput = root.querySelector('[data-cloud-code]');
+  const ensureCode = () => {
+    let c = (codeInput.value || '').trim().toUpperCase();
+    if (!c) { c = genCloudCode(); codeInput.value = c; }
+    Store.data.settings.cloudCode = c; Store.save();
+    return c;
+  };
+  root.querySelectorAll('[data-act="cloud-setbase"]').forEach((btn) => btn.addEventListener('click', () => {
+    const field = btn.previousElementSibling && btn.previousElementSibling.matches('[data-cloud-base]') ? btn.previousElementSibling : btn.parentElement.querySelector('[data-cloud-base]');
+    const url = field ? field.value : '';
+    if (!/^https?:\/\//.test(url)) { csay("Adresse invalide (elle doit commencer par https://).", false); return; }
+    setCloudBase(url); say('Espace de stockage enregistré. ✓'); setTimeout(() => renderDashboard(), 300);
+  }));
+  const genBtn = root.querySelector('[data-act="cloud-gen"]');
+  if (genBtn) genBtn.addEventListener('click', () => { codeInput.value = genCloudCode(); Store.data.settings.cloudCode = codeInput.value; Store.save(); csay('Nouveau code généré : note-le bien !'); });
+  const autoBox = root.querySelector('[data-cloud-auto]');
+  if (autoBox) autoBox.addEventListener('change', () => { Store.data.settings.cloudAuto = autoBox.checked; if (autoBox.checked) ensureCode(); Store.save(); csay(autoBox.checked ? 'Synchro automatique activée.' : 'Synchro automatique désactivée.'); });
+  const cloudSaveBtn = root.querySelector('[data-act="cloud-save"]');
+  if (cloudSaveBtn) cloudSaveBtn.addEventListener('click', async () => {
+    const code = ensureCode();
+    csay('Sauvegarde en ligne…');
+    try { await Cloud.save(code, Store.exportJSON()); csay(`Sauvegardé en ligne sous le code « ${code} ». Note-le pour le réutiliser ! ✓`); }
+    catch (e) { csay(e.message || 'Échec de la sauvegarde en ligne.', false); }
+  });
+  const cloudLoadBtn = root.querySelector('[data-act="cloud-load"]');
+  if (cloudLoadBtn) cloudLoadBtn.addEventListener('click', async () => {
+    const code = (codeInput.value || '').trim().toUpperCase();
+    if (!code) { csay('Entre d\'abord ton code.', false); return; }
+    csay('Récupération en ligne…');
+    try {
+      const json = await Cloud.load(code);
+      const s = Store.importJSON(json);
+      Store.data.settings.cloudCode = code; Store.save();
+      csay(`Progression récupérée ! ${s.xp} XP · ${s.chapters} chapitre(s). ✓`);
+      refreshTopbar(); setTimeout(() => renderDashboard(), 700);
+    } catch (e) { csay(e.message || 'Aucune sauvegarde trouvée pour ce code.', false); }
   });
 
   refreshTopbar();
