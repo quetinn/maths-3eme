@@ -5,7 +5,7 @@
 //  Bumper VERSION force le rafraîchissement de tous les fichiers.
 // =====================================================================
 
-const VERSION = 'v8';
+const VERSION = 'v9';
 const CACHE = 'maths3eme-' + VERSION;
 
 // Coquille de l'application (chemins relatifs à l'emplacement du SW = racine)
