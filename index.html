@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="description" content="Plateforme interactive de mathématiques pour la classe de 3ème — cours, méthodes et exercices auto-corrigés." />
+  <meta name="description" content="Plateforme interactive de mathématiques pour le collège (5ᵉ, 4ᵉ, 3ᵉ) — cours, méthodes et exercices auto-corrigés." />
   <meta name="theme-color" content="#5b8a72" />
-  <title>Maths 3ᵉ — Plateforme interactive</title>
+  <title>Maths Collège — cours et exercices de la 5ᵉ à la 3ᵉ</title>
 
   <!-- PWA : installation + hors-ligne -->
   <link rel="manifest" href="manifest.json" />
@@ -13,7 +13,7 @@
   <!-- iOS : « Sur l'écran d'accueil » -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Maths 3ᵉ" />
+  <meta name="apple-mobile-web-app-title" content="Maths Collège" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
 
   <!-- KaTeX (formules) -->
@@ -29,12 +29,13 @@
   <header class="topbar">
     <a class="brand" href="#/">
       <span class="brand-ico">📐</span>
-      <span class="brand-txt">Maths&nbsp;3<sup>e</sup></span>
+      <span class="brand-txt">Maths&nbsp;Collège</span>
     </a>
     <div class="xp-mini" id="xpMini" aria-label="Progression"></div>
     <nav class="top-actions">
       <a class="top-btn" href="#/formulaire" title="Aide-mémoire" aria-label="Aide-mémoire">📖</a>
-      <a class="top-btn" href="#/tableau" title="Tableau de bord" aria-label="Tableau de bord">📊</a>
+      <a class="top-btn" id="btnTableau" href="#/tableau" title="Tableau de bord" aria-label="Tableau de bord">📊</a>
+      <a class="top-btn compte-btn" id="btnCompte" href="#/compte" title="Mon compte" aria-label="Mon compte" hidden>👤</a>
       <button class="top-btn" id="btnSettings" title="Réglages" aria-label="Réglages">⚙️</button>
     </nav>
   </header>

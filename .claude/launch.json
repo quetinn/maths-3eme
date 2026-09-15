@@ -12,6 +12,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["serve.py"],
       "port": 8124
+    },
+    {
+      "name": "mock-sheets",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["tools/mock_sheets.mjs"],
+      "port": 8125
     }
   ]
 }

@@ -1,68 +1,24 @@
 // =====================================================================
 //  app.js — Cœur de l'application
-//  - Registre des thèmes et des chapitres
-//  - Store localStorage v2 : XP, badges, suivi par exercice, maîtrise,
-//    streak, "à revoir", réglages (thème/police), historique XP
-//  - Routeur SPA par hash (#/, #/chapitre/cXX, #/tableau)
-//  - Accueil, page de chapitre, tableau de bord, réglages, PWA
+//  - Store localStorage : XP, badges, suivi par exercice, maîtrise,
+//    streak, "à revoir", réglages (thème/police/niveau/affichage), historique XP
+//  - Routeur SPA par hash (#/, #/chapitre/cXX, #/tableau…)
+//  - Accueil par niveau (5ᵉ/4ᵉ/3ᵉ), page de chapitre (express/complète),
+//    tableau de bord, compte élève (#/compte), espace tuteur (#/prof), réglages, PWA
+//  Registre des chapitres : programme.js · statistiques : stats.js ·
+//  comptes et synchro Google Sheets : cloud.js (+ fusion.js).
 // =====================================================================
 
 import { renderMath } from './render.js';
 import { mountExercise, mountQuiz, checkAnswer } from './engine.js';
+import { NIVEAUX, THEMES, CHAPTERS, chapterById, themeById, niveauById, chaptersOf } from './programme.js';
+import { ymd, maitrise, libelleMaitrise, erreursChapitre, chapitresFragiles, erreursParTheme, progressionNiveau, progressionTheme, resumePourTuteur, exosReussis, serieActuelle, aCommence } from './stats.js';
+import { creerSynchro, appeler, enLigneDisponible, Tuteur } from './cloud.js';
+import { fusionner } from './fusion.js';
 
-// ---------------------------------------------------------------------
-//  Registre des thèmes
-// ---------------------------------------------------------------------
+export { NIVEAUX, THEMES, CHAPTERS }; // ré-export (outils de diagnostic)
 
-export const THEMES = [
-  { id: 'nombres_calculs', label: 'Nombres et calculs', icone: '🔢' },
-  { id: 'fonctions',       label: 'Fonctions',           icone: '📈' },
-  { id: 'geometrie',       label: 'Géométrie',           icone: '📐' },
-  { id: 'donnees',         label: 'Données et probabilités', icone: '📊' },
-  { id: 'algo',            label: 'Algorithmique', icone: '💻', bonus: true },
-  { id: 'rappels',         label: 'Rappels de 4ᵉ', icone: '🧰', rappel: true },
-];
-
-// ---------------------------------------------------------------------
-//  Registre des chapitres
-// ---------------------------------------------------------------------
-
-export const CHAPTERS = [
-  { id: 'c01', num: 1,  titre: 'Calcul littéral',            theme: 'nombres_calculs', priorite: true,  icone: '🔢', module: './chapters/c01_calcul_litteral.js' },
-  { id: 'c02', num: 2,  titre: 'Identités remarquables',     theme: 'nombres_calculs', priorite: true,  icone: '🟰', module: './chapters/c02_identites_remarquables.js' },
-  { id: 'c03', num: 3,  titre: 'Équations du 1er degré',     theme: 'nombres_calculs', priorite: false, icone: '⚖️', module: './chapters/c03_equations_1er_degre.js' },
-  { id: 'c04', num: 4,  titre: 'Équations-produit',          theme: 'nombres_calculs', priorite: false, icone: '✖️', module: './chapters/c04_equations_produit.js' },
-  { id: 'c05', num: 5,  titre: 'Arithmétique',               theme: 'nombres_calculs', priorite: false, icone: '🧮', module: './chapters/c05_arithmetique.js' },
-  { id: 'c06', num: 6,  titre: 'Puissances et racines',      theme: 'nombres_calculs', priorite: false, icone: '√',  module: './chapters/c06_puissances_racines.js' },
-  { id: 'c07', num: 7,  titre: 'Notion de fonction',         theme: 'fonctions',       priorite: true,  icone: '📈', module: './chapters/c07_notion_de_fonction.js' },
-  { id: 'c08', num: 8,  titre: 'Fonctions linéaires & affines', theme: 'fonctions',    priorite: true,  icone: '📉', module: './chapters/c08_fonctions_lineaires_affines.js' },
-  { id: 'c09', num: 9,  titre: 'Sens de variation',          theme: 'fonctions',       priorite: false, icone: '〽️', module: './chapters/c09_variations_lecture_graphique.js' },
-  { id: 'c10', num: 10, titre: 'Théorème de Thalès',         theme: 'geometrie',       priorite: true,  icone: '📐', module: './chapters/c10_thales.js' },
-  { id: 'c11', num: 11, titre: 'Trigonométrie',              theme: 'geometrie',       priorite: true,  icone: '🔺', module: './chapters/c11_trigonometrie.js' },
-  { id: 'c12', num: 12, titre: 'Transformations du plan',    theme: 'geometrie',       priorite: false, icone: '🔄', module: './chapters/c12_transformations_plan.js' },
-  { id: 'c13', num: 13, titre: 'Homothétie',                 theme: 'geometrie',       priorite: false, icone: '🔎', module: './chapters/c13_homothetie.js' },
-  { id: 'c14', num: 14, titre: 'Géométrie dans l\'espace',   theme: 'geometrie',       priorite: false, icone: '🧊', module: './chapters/c14_geometrie_espace.js' },
-  { id: 'c15', num: 15, titre: 'Statistiques',               theme: 'donnees',         priorite: false, icone: '📊', module: './chapters/c15_statistiques.js' },
-  { id: 'c16', num: 16, titre: 'Probabilités',               theme: 'donnees',         priorite: false, icone: '🎲', module: './chapters/c16_probabilites.js' },
-  { id: 'c17', num: 17, titre: 'Algorithmique',              theme: 'algo',            priorite: false, icone: '💻', module: './chapters/c17_algorithmique.js' },
-  // Rappels de 4ᵉ — programme complet à réviser avant la 3ᵉ (ordonné par domaine).
-  { id: 'r02', num: 18, titre: 'Nombres relatifs',             theme: 'rappels',       priorite: false, icone: '➕', module: './chapters/r02_nombres_relatifs.js' },
-  { id: 'r03', num: 19, titre: 'Opérations sur les fractions', theme: 'rappels',       priorite: false, icone: '🍰', module: './chapters/r03_fractions.js' },
-  { id: 'r06', num: 20, titre: 'Calcul littéral (4ᵉ)',         theme: 'rappels',       priorite: false, icone: '✖️', module: './chapters/r06_calcul_litteral.js' },
-  { id: 'r07', num: 21, titre: 'Équations (4ᵉ)',               theme: 'rappels',       priorite: false, icone: '⚖️', module: './chapters/r07_equations.js' },
-  { id: 'r08', num: 22, titre: 'Puissances (4ᵉ)',              theme: 'rappels',       priorite: false, icone: '²',  module: './chapters/r08_puissances.js' },
-  { id: 'r04', num: 23, titre: 'Proportionnalité',             theme: 'rappels',       priorite: false, icone: '⚖️', module: './chapters/r04_proportionnalite.js' },
-  { id: 'r09', num: 24, titre: 'Statistiques (4ᵉ)',            theme: 'rappels',       priorite: false, icone: '📊', module: './chapters/r09_statistiques.js' },
-  { id: 'r10', num: 25, titre: 'Probabilités (4ᵉ)',            theme: 'rappels',       priorite: false, icone: '🎲', module: './chapters/r10_probabilites.js' },
-  { id: 'r01', num: 26, titre: 'Théorème de Pythagore',        theme: 'rappels',       priorite: false, icone: '📐', module: './chapters/r01_pythagore.js' },
-  { id: 'r05', num: 27, titre: 'Cosinus (triangle rectangle)', theme: 'rappels',       priorite: false, icone: '📐', module: './chapters/r05_cosinus.js' },
-  { id: 'r11', num: 28, titre: 'Translation et symétries (4ᵉ)', theme: 'rappels',      priorite: false, icone: '🔄', module: './chapters/r11_transformations.js' },
-  { id: 'r12', num: 29, titre: 'Aires, périmètres et volumes (4ᵉ)', theme: 'rappels',  priorite: false, icone: '📦', module: './chapters/r12_aires_volumes.js' },
-];
-
-const chapterById = (id) => CHAPTERS.find((c) => c.id === id);
-const themeById = (id) => THEMES.find((t) => t.id === id);
-const ymd = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+let Sync = null; // gestionnaire de synchronisation en ligne (créé au démarrage)
 
 // Cache des modules de chapitre importés (évite de ré-importer les 17 modules
 // à chaque lancement d'examen / fiche / page chapitre).
@@ -76,36 +32,61 @@ async function loadChapter(meta) {
 }
 
 // ---------------------------------------------------------------------
-//  Store localStorage (v2, migration douce depuis v1)
+//  Store localStorage (progression de l'appareil)
+//  Chaque enregistrement déclenche l'envoi en ligne si l'élève est connecté.
 // ---------------------------------------------------------------------
 
 const STORE_KEY = 'maths3eme_v1'; // on garde la clé : migration en place
 
+const donneesVides = (settings) => ({
+  version: 3, xp: 0, badges: {}, chapters: {}, last: null,
+  streak: { count: 0, lastDay: null },
+  settings: settings || {},
+  history: [],      // [{ d:'YYYY-MM-DD', xp: <total cumulé ce jour> }]
+  activite: {},     // { 'YYYY-MM-DD': exercices réussis ce jour }
+  achievements: {}, daily: { d: null, count: 0 }, examPassed: false,
+  updatedAt: 0, proprietaire: null,
+});
+
 const Store = {
-  data: {
-    version: 2, xp: 0, badges: {}, chapters: {}, last: null,
-    streak: { count: 0, lastDay: null },
-    settings: { theme: 'auto', font: 'normal' },
-    history: [], // [{ d:'YYYY-MM-DD', xp: <total cumulé ce jour> }]
-  },
+  data: donneesVides(),
 
   load() {
-    try {
-      const raw = localStorage.getItem(STORE_KEY);
-      if (raw) this.data = Object.assign(this.data, JSON.parse(raw));
-    } catch (e) { console.warn('[store] lecture impossible', e); }
-    // défauts pour les champs ajoutés en v2
-    this.data.streak = this.data.streak || { count: 0, lastDay: null };
-    this.data.settings = Object.assign({ theme: 'auto', font: 'normal', cloudCode: null, cloudAuto: false }, this.data.settings || {});
-    this.data.history = this.data.history || [];
-    this.data.achievements = this.data.achievements || {};
-    this.data.daily = this.data.daily || { d: null, count: 0 };
+    let lu = {};
+    try { lu = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; }
+    catch (e) { console.warn('[store] lecture impossible', e); }
+    this.data = this.normaliser(lu);
     return this;
   },
-  save() {
+  /** Complète une progression (ancienne version, import, fusion) avec les champs par défaut. */
+  normaliser(d) {
+    const out = Object.assign(donneesVides(), d || {});
+    out.streak = out.streak || { count: 0, lastDay: null };
+    // niveau : classe de l'élève (null tant qu'elle n'est pas choisie) ; niveauAt : date du choix ;
+    // affichage : 'complet' (cours + méthode + tous les exercices) ou 'express'.
+    out.settings = Object.assign({ theme: 'auto', font: 'normal', niveau: null, niveauAt: 0, affichage: 'complet' }, out.settings || {});
+    delete out.settings.cloudCode; delete out.settings.cloudAuto; // ancienne sauvegarde kvdb
+    out.history = out.history || [];
+    out.activite = out.activite || {};
+    out.achievements = out.achievements || {};
+    out.daily = out.daily || { d: null, count: 0 };
+    out.chapters = out.chapters || {};
+    for (const id in out.chapters) { // entrées vides (créées par d'anciennes versions) : inutiles à synchroniser
+      const c = out.chapters[id];
+      if (!c || (!c.xp && !Object.keys(c.exercices || {}).length && !c.quizPassed && !c.quizScore && !c.review)) delete out.chapters[id];
+    }
+    out.badges = out.badges || {};
+    return out;
+  },
+  /** Enregistre sur l'appareil SANS déclencher d'envoi en ligne. */
+  saveLocal() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(this.data)); }
     catch (e) { console.warn('[store] sauvegarde impossible', e); }
-    scheduleCloudSync(); // pousse en ligne (anti-rebond) si la synchro auto est active
+  },
+  save() {
+    this.data.updatedAt = Date.now();
+    this.saveLocal();
+    if (Sync) Sync.planifier(); // envoi en ligne (anti-rebond) si l'élève est connecté
   },
 
   chapter(id) {
@@ -131,11 +112,15 @@ const Store = {
     if (h.length > 90) h.splice(0, h.length - 90);
   },
 
-  // — Compteur d'exercices réussis dans la journée (objectif quotidien + succès) —
+  // — Exercices réussis : objectif du jour + journal d'activité (60 jours, pour le tuteur) —
   bumpDaily() {
     const today = ymd();
     if (!this.data.daily || this.data.daily.d !== today) this.data.daily = { d: today, count: 0 };
     this.data.daily.count++;
+    const act = this.data.activite;
+    act[today] = (act[today] || 0) + 1;
+    const limite = ymd(new Date(Date.now() - 60 * 86400000));
+    Object.keys(act).forEach((d) => { if (d < limite) delete act[d]; });
     this.save();
   },
   exercisesToday() {
@@ -175,69 +160,31 @@ const Store = {
     refreshTopbar();
     checkAchievements();
   },
-  setQuizScore(chId, score, total) { this.chapter(chId).quizScore = `${score}/${total}`; this.save(); },
+  setQuizScore(chId, score, total) { // garde le meilleur score
+    const c = this.chapter(chId);
+    if (!c.quizScore || score >= parseInt(c.quizScore, 10)) { c.quizScore = `${score}/${total}`; this.save(); }
+  },
   setLast(chId) { this.data.last = chId; this.save(); },
   hasBadge(chId) { return !!this.data.badges[chId]; },
 
   toggleReview(chId) { const c = this.chapter(chId); c.review = !c.review; this.save(); return c.review; },
-  isReview(chId) { return !!this.chapter(chId).review; },
+  isReview(chId) { return !!(this.data.chapters[chId] && this.data.chapters[chId].review); },
+
+  /** Change la classe de l'élève (datée : la plus récente l'emporte entre appareils et tuteur). */
+  setNiveau(niveau) { this.data.settings.niveau = niveau; this.data.settings.niveauAt = Date.now(); this.save(); },
 
   level() { return Math.floor(this.data.xp / 100) + 1; },
   levelProgress() { return this.data.xp % 100; },
 
-  globalProgress() {
-    const done = CHAPTERS.filter((c) => this.chapter(c.id).quizPassed).length;
-    return { done, total: CHAPTERS.length, pct: Math.round((done / CHAPTERS.length) * 100) };
-  },
-  themeProgress(themeId) {
-    const list = CHAPTERS.filter((c) => c.theme === themeId);
-    const done = list.filter((c) => this.chapter(c.id).quizPassed).length;
-    return { done, total: list.length, pct: Math.round((done / list.length) * 100) };
-  },
-
-  // — Maîtrise (0–100) : exercices réussis + quiz validé —
-  mastery(chId) {
-    const c = this.chapter(chId);
-    let attempted = 0, mastered = 0;
-    for (const id in c.exercices) {
-      const e = c.exercices[id];
-      if (typeof e === 'object' && e) { attempted++; if ((e.ok || 0) > 0) mastered++; }
-      else if (e === true) { attempted++; mastered++; }
-    }
-    const exoScore = attempted ? mastered / attempted : 0;
-    const quizScore = c.quizPassed ? 1 : 0;
-    if (!attempted && !quizScore) return 0;
-    return Math.round((exoScore * 0.6 + quizScore * 0.4) * 100);
-  },
-  masteryLabel(pct) {
-    if (pct >= 85) return '🏆 Maîtrisé';
-    if (pct >= 60) return '🌳 Solide';
-    if (pct >= 30) return '🌿 En progrès';
-    if (pct > 0) return '🌱 Débuté';
-    return 'À commencer';
-  },
-
-  // — Statistiques d'erreurs (« ce qui coince ») —
-  chapterErrors(chId) {
-    const c = this.chapter(chId);
-    let ok = 0, ko = 0;
-    for (const id in c.exercices) { const e = c.exercices[id]; if (typeof e === 'object' && e) { ok += e.ok || 0; ko += e.ko || 0; } }
-    return { ok, ko, total: ok + ko, rate: ok + ko ? ko / (ok + ko) : 0 };
-  },
-  weakChapters() {
-    return CHAPTERS
-      .map((c) => ({ c, ...this.chapterErrors(c.id), review: this.isReview(c.id) }))
-      .filter((x) => x.review || (x.ko >= 2 && x.rate >= 0.4))
-      .sort((a, b) => (b.review - a.review) || (b.rate - a.rate));
-  },
-  // Bilan d'erreurs agrégé par domaine (thème) — pour le tableau de bord.
-  errorsByTheme() {
-    return THEMES.map((t) => {
-      let ok = 0, ko = 0;
-      CHAPTERS.filter((c) => c.theme === t.id).forEach((c) => { const e = this.chapterErrors(c.id); ok += e.ok; ko += e.ko; });
-      return { t, ok, ko, total: ok + ko, rate: ok + ko ? ko / (ok + ko) : 0 };
-    }).filter((x) => x.total > 0).sort((a, b) => b.rate - a.rate);
-  },
+  // Statistiques : calculées par stats.js sur la progression de l'appareil.
+  niveau() { return this.data.settings.niveau || '3e'; },
+  niveauProgress(niveau = this.niveau()) { return progressionNiveau(this.data, niveau); },
+  themeProgress(themeId, niveau = this.niveau()) { return progressionTheme(this.data, themeId, niveau); },
+  mastery(chId) { return maitrise(this.data, chId); },
+  masteryLabel(pct) { return libelleMaitrise(pct); },
+  chapterErrors(chId) { return erreursChapitre(this.data, chId); },
+  weakChapters() { return chapitresFragiles(this.data); },
+  errorsByTheme() { return erreursParTheme(this.data); },
 
   weeklyXP() {
     const cutoff = ymd(new Date(Date.now() - 6 * 86400000));
@@ -248,33 +195,25 @@ const Store = {
 
   // Export horodaté et étiqueté (les métas _app/_savedAt aident à reconnaître
   // une sauvegarde valide ; elles sont inoffensives à la relecture).
-  exportJSON() { return JSON.stringify(Object.assign({ _app: 'maths3eme', _savedAt: new Date().toISOString() }, this.data)); },
-  // Variante compacte pour le QR (progression essentielle, sans l'historique).
-  exportCompact() {
-    const chapters = {};
-    for (const id in this.data.chapters) {
-      const c = this.data.chapters[id];
-      chapters[id] = { xp: c.xp || 0, quizPassed: !!c.quizPassed, quizScore: c.quizScore || null, review: !!c.review };
-    }
-    return JSON.stringify({ _app: 'maths3eme', xp: this.data.xp, chapters, badges: this.data.badges,
-      streak: this.data.streak, achievements: this.data.achievements, settings: this.data.settings, examPassed: this.data.examPassed });
-  },
+  exportJSON() { return JSON.stringify(Object.assign({ _app: 'maths-college', _savedAt: new Date().toISOString() }, this.data)); },
   importJSON(text) {
     const obj = JSON.parse(text);
     if (!obj || typeof obj !== 'object' || !('xp' in obj)) throw new Error('Sauvegarde invalide');
     delete obj._app; delete obj._savedAt; // métadonnées d'export, pas des données de jeu
-    this.data = Object.assign(this.data, obj);
-    this.save(); // persiste D'ABORD la sauvegarde importée dans localStorage…
-    this.load(); // …puis re-applique les défauts en relisant ce qu'on vient d'écrire
-    // (l'inverse écrasait l'import par l'ancienne sauvegarde locale : restauration cassée).
+    const compte = Sync && Sync.compte();
+    // Connecté : on fusionne avec la progression actuelle (rien n'est perdu) ; sinon on remplace.
+    const nouveau = compte ? fusionner(this.data, this.normaliser(obj)) : this.normaliser(obj);
+    if (compte) nouveau.proprietaire = compte.pseudo;
+    this.data = this.normaliser(nouveau);
+    this.save();
     refreshTopbar();
     return { xp: this.data.xp, chapters: Object.keys(this.data.chapters).length, badges: Object.keys(this.data.badges).length };
   },
-  reset() {
-    this.data = { version: 2, xp: 0, badges: {}, chapters: {}, last: null,
-      streak: { count: 0, lastDay: null }, settings: this.data.settings, history: [], achievements: {},
-      daily: { d: null, count: 0 }, examPassed: false };
-    this.save();
+  /** Efface la progression de l'appareil (garde thème/police sauf `tout`). */
+  reset({ tout = false } = {}) {
+    const s = this.data.settings;
+    this.data = this.normaliser(donneesVides(tout ? { theme: s.theme, font: s.font } : s));
+    this.saveLocal();
   },
 };
 
@@ -295,9 +234,9 @@ const ACHIEVEMENTS = [
   { id: 'daily10', icone: '⚡', label: '10 exercices en un jour', cond: () => Store.exercisesToday() >= 10 },
   { id: 'chap1',   icone: '🏅', label: '1er chapitre validé', cond: () => Object.keys(Store.data.badges).length >= 1 },
   { id: 'exam',    icone: '🎓', label: 'Examen blanc réussi', cond: () => !!Store.data.examPassed },
-  { id: 'theme',   icone: '📗', label: 'Un thème complété',  cond: () => THEMES.some((t) => Store.themeProgress(t.id).pct === 100) },
-  { id: 'half',    icone: '🏆', label: 'À mi-chemin (9 ch.)', cond: () => Store.globalProgress().done >= 9 },
-  { id: 'all',     icone: '👑', label: 'Brevet en poche !',  cond: () => Store.globalProgress().done >= CHAPTERS.length },
+  { id: 'theme',   icone: '📗', label: 'Un thème complété',  cond: () => NIVEAUX.some((n) => THEMES.some((t) => { const p = Store.themeProgress(t.id, n.id); return p.total > 0 && p.done === p.total; })) },
+  { id: 'half',    icone: '🏆', label: 'Mi-chemin dans ton niveau', cond: () => { const p = Store.niveauProgress(); return p.total > 0 && p.done * 2 >= p.total; } },
+  { id: 'all',     icone: '👑', label: 'Niveau terminé !',   cond: () => { const p = Store.niveauProgress(); return p.total > 0 && p.done === p.total; } },
 ];
 
 function checkAchievements() {
@@ -352,6 +291,15 @@ function openSettings() {
     modal.innerHTML = `
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
         <div class="modal-head"><h2 id="settings-title">⚙️ Réglages</h2><button class="modal-close" aria-label="Fermer les réglages">✕</button></div>
+        <fieldset class="setting-group setting-inline">
+          <legend>Ma classe</legend>
+          ${NIVEAUX.map((n) => `<label><input type="radio" name="niveau" value="${n.id}"> ${n.label}</label>`).join('')}
+        </fieldset>
+        <fieldset class="setting-group">
+          <legend>Chapitres</legend>
+          <label><input type="radio" name="affichage" value="complet"> 📚 Version complète</label>
+          <label><input type="radio" name="affichage" value="express"> ⚡ Version express (l'essentiel)</label>
+        </fieldset>
         <fieldset class="setting-group">
           <legend>Thème</legend>
           <label><input type="radio" name="theme" value="auto"> Automatique</label>
@@ -364,14 +312,22 @@ function openSettings() {
           <label><input type="radio" name="font" value="large"> Grande police 🔍</label>
           <label><input type="radio" name="font" value="dys"> Lecture facilitée</label>
         </fieldset>
-        <a class="btn btn-ghost" href="#/tableau" data-close>📊 Tableau de bord & sauvegarde</a>
+        <div class="modal-links">
+          <a class="btn btn-ghost" href="#/compte" data-close>👤 Mon compte</a>
+          <a class="btn btn-ghost" href="#/tableau" data-close>📊 Tableau de bord</a>
+        </div>
       </div>`;
     document.body.appendChild(modal);
     modal.querySelector('.modal-close').addEventListener('click', closeSettings);
     modal.addEventListener('click', (e) => { if (e.target === modal) closeSettings(); });
     modal.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', closeSettings));
-    modal.querySelectorAll('input[name="theme"]').forEach((r) => r.addEventListener('change', () => { s.theme = r.value; Store.save(); applySettings(); }));
-    modal.querySelectorAll('input[name="font"]').forEach((r) => r.addEventListener('change', () => { s.font = r.value; Store.save(); applySettings(); }));
+    // Toujours relire Store.data.settings : la progression peut être remplacée (connexion, fusion).
+    const regler = (cle, val) => { Store.data.settings[cle] = val; Store.save(); };
+    modal.querySelectorAll('input[name="theme"]').forEach((r) => r.addEventListener('change', () => { regler('theme', r.value); applySettings(); }));
+    modal.querySelectorAll('input[name="font"]').forEach((r) => r.addEventListener('change', () => { regler('font', r.value); applySettings(); }));
+    // Niveau / affichage : on redessine la page courante (accueil ou chapitre).
+    modal.querySelectorAll('input[name="niveau"]').forEach((r) => r.addEventListener('change', () => { Store.setNiveau(r.value); router(); }));
+    modal.querySelectorAll('input[name="affichage"]').forEach((r) => r.addEventListener('change', () => { regler('affichage', r.value); router(); }));
     // Accessibilité : Échap pour fermer + piège de focus (Tab boucle dans la modale).
     modal.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') { e.preventDefault(); closeSettings(); return; }
@@ -386,6 +342,8 @@ function openSettings() {
   // (Ré)synchronise l'état des champs, mémorise le focus de départ, puis ouvre.
   modal.querySelector(`input[name="theme"][value="${s.theme}"]`).checked = true;
   modal.querySelector(`input[name="font"][value="${s.font}"]`).checked = true;
+  modal.querySelectorAll('input[name="niveau"]').forEach((r) => { r.checked = r.value === s.niveau; });
+  modal.querySelector(`input[name="affichage"][value="${s.affichage}"]`).checked = true;
   _settingsReturnFocus = document.activeElement;
   modal.classList.add('open');
   modal.querySelector('.modal-close').focus();
@@ -406,6 +364,31 @@ function refreshTopbar() {
     <span class="lvl-badge">Niv. ${lvl}</span>
     <span class="xp-bar"><span style="width:${prog}%"></span></span>
     <span class="xp-val">${Store.data.xp} XP</span>`;
+  refreshCompteBtn();
+}
+
+// Bouton 👤 : pastille de couleur selon l'état de la sauvegarde en ligne.
+const STATUTS_SYNCHRO = {
+  deconnecte: { txt: 'Pas connecté : progression sur cet appareil seulement', cls: '' },
+  synchro: { txt: 'Synchronisation…', cls: 'is-sync' },
+  ok: { txt: 'Progression sauvegardée en ligne', cls: 'is-ok' },
+  'en-attente': { txt: 'Envoi en ligne dans quelques secondes', cls: 'is-sync' },
+  'hors-ligne': { txt: 'Hors ligne : envoi dès le retour d\'Internet', cls: 'is-warn' },
+  erreur: { txt: 'Sauvegarde en ligne impossible pour l\'instant', cls: 'is-err' },
+  reconnexion: { txt: 'Reconnecte-toi (ton code a changé ?)', cls: 'is-err' },
+};
+function refreshCompteBtn() {
+  const btn = document.getElementById('btnCompte');
+  if (!btn) return;
+  // Avec la sauvegarde en ligne : 👤 remplace 📊 (le tableau de bord reste sur l'accueil).
+  btn.hidden = !enLigneDisponible();
+  const tab = document.getElementById('btnTableau');
+  if (tab) tab.hidden = enLigneDisponible();
+  const st = STATUTS_SYNCHRO[Sync ? Sync.statut : 'deconnecte'] || STATUTS_SYNCHRO.deconnecte;
+  const compte = Sync && Sync.compte();
+  btn.className = `top-btn compte-btn ${st.cls}`;
+  btn.title = compte ? `${compte.pseudo} — ${st.txt}` : 'Se connecter';
+  btn.setAttribute('aria-label', btn.title);
 }
 
 // ---------------------------------------------------------------------
@@ -454,96 +437,13 @@ function confetti() {
 }
 
 // ---------------------------------------------------------------------
-//  Génération de QR (chargement paresseux de la bibliothèque par CDN)
-// ---------------------------------------------------------------------
-
-let _qrLoading = null;
-function loadQRLib() {
-  if (window.qrcode) return Promise.resolve();
-  if (_qrLoading) return _qrLoading;
-  _qrLoading = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
-    s.crossOrigin = 'anonymous';
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('QR lib non chargée'));
-    document.head.appendChild(s);
-  });
-  return _qrLoading;
-}
-
-/** Renvoie un <svg> QR (chaîne HTML) encodant `text`. */
-async function makeQR(text) {
-  await loadQRLib();
-  // typeNumber 0 = ajustement automatique ; niveau 'L' = capacité maximale.
-  const qr = window.qrcode(0, 'L');
-  qr.addData(text);
-  qr.make();
-  return qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
-}
-
-// ---------------------------------------------------------------------
-//  Sauvegarde en ligne (cloud) — stockage clé-valeur simple
-//  Modèle « code de récupération » : la progression est rangée en ligne
-//  sous un petit code ; il suffit de retaper ce code sur un autre appareil.
-//
-//  Aucun secret dans le dépôt : l'URL du « bucket » se configure dans l'app
-//  (champ dans le tableau de bord) et se stocke en local. Pour une config
-//  zéro côté élève, on peut aussi coller l'URL dans CLOUD_BASE_BUILTIN.
-//
-//  Contrat REST attendu (compatible kvdb.io / jsonstorage clé par chemin) :
-//    PUT  <base>/<code>   body = JSON de la sauvegarde   → 200
-//    GET  <base>/<code>                                  → JSON (ou 404)
-// ---------------------------------------------------------------------
-
-const CLOUD_BASE_BUILTIN = ''; // ← (option) URL du bucket, ex: 'https://kvdb.io/AbCdEf…'
-function cloudBase() { return CLOUD_BASE_BUILTIN || localStorage.getItem('maths3eme_cloud') || ''; }
-function setCloudBase(url) { localStorage.setItem('maths3eme_cloud', (url || '').trim().replace(/\/+$/, '')); }
-
-// Code lisible (sans caractères ambigus : 0/O, 1/I/L…).
-function genCloudCode() {
-  const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-  let c = ''; for (let i = 0; i < 6; i++) c += A[Math.floor(Math.random() * A.length)];
-  return c;
-}
-
-const Cloud = {
-  configured() { return !!cloudBase(); },
-  async save(code, jsonString) {
-    const r = await fetch(`${cloudBase()}/${encodeURIComponent(code)}`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: jsonString,
-    });
-    if (!r.ok) throw new Error('Échec de la sauvegarde en ligne (' + r.status + ')');
-  },
-  async load(code) {
-    const r = await fetch(`${cloudBase()}/${encodeURIComponent(code)}`);
-    if (r.status === 404) throw new Error('Aucune sauvegarde pour ce code.');
-    if (!r.ok) throw new Error('Lecture en ligne impossible (' + r.status + ')');
-    const txt = (await r.text()).trim();
-    if (!txt) throw new Error('Aucune sauvegarde pour ce code.');
-    return txt;
-  },
-};
-
-// Synchro automatique (anti-rebond) : après chaque progrès, si un code est
-// défini et la synchro activée, on pousse la sauvegarde au bout de 3 s.
-let _cloudTimer = null;
-function scheduleCloudSync() {
-  const s = Store.data.settings;
-  if (!Cloud.configured() || !s || !s.cloudCode || !s.cloudAuto) return;
-  clearTimeout(_cloudTimer);
-  _cloudTimer = setTimeout(() => {
-    Cloud.save(s.cloudCode, Store.exportJSON())
-      .then(() => { const b = document.querySelector('[data-cloud-status]'); if (b) { b.textContent = '☁️ Synchronisé ✓'; b.className = 'save-msg is-ok'; } })
-      .catch((e) => console.warn('[cloud] synchro auto échouée', e));
-  }, 3000);
-}
-
-// ---------------------------------------------------------------------
 //  Routeur SPA (hash)
 // ---------------------------------------------------------------------
 
 const app = () => document.getElementById('app');
+
+/** Échappe le texte venant de l'extérieur (pseudos, résumés du tableur…). */
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 function router() {
   const hash = location.hash || '#/';
@@ -551,14 +451,17 @@ function router() {
   if (examTimer) { clearInterval(examTimer); examTimer = null; } // stop chrono si on quitte l'examen
   const m = hash.match(/^#\/chapitre\/([a-z]+\d+)/);
   const rev = hash.match(/^#\/revision\/([a-z]+\d+)/);
+  const eleve = hash.match(/^#\/prof\/eleve\/([^/?#]+)/);
   if (m) renderChapter(m[1]);
   else if (rev) renderRevision(rev[1]);
+  else if (eleve) renderProfEleve(decodeURIComponent(eleve[1]));
+  else if (hash.startsWith('#/prof')) renderProf();
+  else if (hash.startsWith('#/compte')) renderCompte();
   else if (hash.startsWith('#/tableau')) renderDashboard();
   else if (hash.startsWith('#/formulaire')) renderFormulaire();
   else if (hash.startsWith('#/examen')) renderExamen();
   else if (hash.startsWith('#/brevet')) renderBrevet();
   else if (hash.startsWith('#/revise')) renderRevise();
-  else if (hash.startsWith('#/restore')) renderRestore();
   else if (hash.startsWith('#/diagnostic')) renderDiagnostic();
   else if (hash.startsWith('#/fiche')) renderFiche();
   else renderHome();
@@ -572,34 +475,50 @@ function navigate(hash) { location.hash = hash; }
 function renderHome() {
   const root = app();
   root.removeAttribute('data-theme');
-  const g = Store.globalProgress();
+  const s = Store.data.settings;
+  const m = (location.hash || '').match(/^#\/niveau\/(5e|4e|3e)/);
+  if (!s.niveau && !m) { renderChoixNiveau(root); return; }
+
+  const niv = m ? m[1] : s.niveau;
+  const nivInfo = niveauById(niv);
+  const g = Store.niveauProgress(niv);
+  const all = chaptersOf(niv);
+  const enPrepa = all.filter((c) => !c.module).length;
   const last = Store.data.last ? chapterById(Store.data.last) : null;
   const streak = Store.data.streak.count;
   const review = CHAPTERS.filter((c) => Store.isReview(c.id));
+  const idx = NIVEAUX.findIndex((n) => n.id === niv);
+  const prev = idx > 0 ? NIVEAUX[idx - 1] : null;
 
-  const priorityCards = CHAPTERS.filter((c) => c.priorite).map(chapterCard).join('');
-  const rappelsChaps = CHAPTERS.filter((c) => c.theme === 'rappels');
-  const themesHtml = THEMES.filter((t) => t.id !== 'rappels').map((t) => {
-    const list = CHAPTERS.filter((c) => c.theme === t.id);
-    const tp = Store.themeProgress(t.id);
+  const tabs = NIVEAUX.map((n) => `
+    <a class="niv-tab ${n.id === niv ? 'active' : ''}" href="#/niveau/${n.id}" ${n.id === niv ? 'aria-current="page"' : ''}>
+      ${n.label}${n.id === s.niveau ? '<span class="niv-moi" title="Ma classe">ma classe</span>' : ''}
+    </a>`).join('');
+
+  const themesHtml = THEMES.map((t) => {
+    const list = chaptersOf(niv, t.id);
+    if (!list.length) return '';
+    const tp = Store.themeProgress(t.id, niv);
     return `
       <section class="theme-block" data-theme="${t.id}">
         <div class="theme-head">
-          <h2><span class="theme-ico">${t.icone}</span> ${t.label}
-            ${t.bonus ? '<span class="bonus-tag">bonus</span>' : ''}</h2>
-          <div class="theme-prog">
+          <h2><span class="theme-ico">${t.icone}</span> ${t.label}</h2>
+          ${tp.total ? `<div class="theme-prog">
             <span class="mini-bar"><span style="width:${tp.pct}%"></span></span>
             <span class="mini-prog-txt">${tp.done}/${tp.total}</span>
-          </div>
+          </div>` : ''}
         </div>
-        <div class="chapter-grid">${list.map(chapterCard).join('')}</div>
+        <div class="chapter-grid">${list.map((c) => chapterCard(c, niv)).join('')}</div>
       </section>`;
   }).join('');
 
   root.innerHTML = `
+    <nav class="niv-tabs" aria-label="Choisir le niveau">${tabs}</nav>
+
     <section class="hero">
-      <h1>Maths 3ᵉ — Prêt·e pour le brevet 🚀</h1>
-      <p class="hero-sub">16 chapitres, 1 bonus et des rappels de 4ᵉ, du cours aux exercices interactifs. Avance à ton rythme, aucun chapitre n'est verrouillé.</p>
+      <h1>Maths ${nivInfo.label}${niv === s.niveau ? ' 🚀' : ''}</h1>
+      <p class="hero-sub">${g.total} chapitre${g.total > 1 ? 's' : ''} disponible${g.total > 1 ? 's' : ''}${enPrepa ? ` · ${enPrepa} en préparation` : ''}.
+        Tout est accessible : avance à ton rythme.</p>
       <div class="global-progress">
         <div class="gp-bar"><span style="width:${g.pct}%"></span></div>
         <div class="gp-stats">
@@ -619,42 +538,27 @@ function renderHome() {
         <span class="mini-bar"><span style="width:${Math.min(100, Math.round(Store.weeklyXP() / WEEKLY_GOAL * 100))}%"></span></span>
         <span class="mini-prog-txt">${Store.weeklyXP()}/${WEEKLY_GOAL} XP</span>
       </div>
-      <div class="hero-actions">
-        ${last ? `<button class="btn btn-primary btn-resume" data-resume="${last.id}">▶️ Reprendre : ${last.icone} ${last.titre}</button>` : ''}
-        <a class="btn btn-primary" href="#/brevet">📄 Brevet blanc</a>
-        <a class="btn btn-ghost" href="#/revise">🔁 Révision du jour</a>
-        <a class="btn btn-ghost" href="#/tableau">📊 Tableau de bord</a>
-        <a class="btn btn-ghost" href="#/formulaire">📖 Aide-mémoire</a>
-        <a class="btn btn-ghost" href="#/examen">📝 Examen blanc</a>
-        <a class="btn btn-ghost" href="#/fiche">🖨️ Fiches (tuteur)</a>
+      ${enLigneDisponible() && !Sync.compte() ? `<p class="login-nudge">☁️ <a href="#/compte">Connecte-toi avec ton pseudo</a> pour sauvegarder ta progression en ligne.</p>` : ''}
+      ${last ? `<button class="btn btn-primary btn-resume" data-resume="${last.id}">▶️ Reprendre : ${last.icone} ${last.titre}${last.niveau !== niv ? ` (${niveauById(last.niveau).label})` : ''}</button>` : ''}
+      <div class="tool-grid">
+        <a class="tool" href="#/revise"><span class="tool-ico">🔁</span>Révision du jour</a>
+        <a class="tool" href="#/examen"><span class="tool-ico">📝</span>Examen blanc</a>
+        <a class="tool" href="#/brevet"><span class="tool-ico">📄</span>Brevet blanc</a>
+        <a class="tool" href="#/formulaire"><span class="tool-ico">📖</span>Aide-mémoire</a>
+        <a class="tool" href="#/tableau"><span class="tool-ico">📊</span>Tableau de bord</a>
+        <a class="tool" href="#/fiche"><span class="tool-ico">🖨️</span>Fiches (tuteur)</a>
       </div>
     </section>
 
     ${review.length ? `
     <section class="review-section">
       <h2>🔖 À revoir</h2>
-      <div class="chapter-grid">${review.map(chapterCard).join('')}</div>
-    </section>` : ''}
-
-    <section class="priority-section">
-      <div class="priority-head">
-        <h2>⭐ Par où commencer — Chapitres prioritaires</h2>
-        <p>Les chapitres travaillés en cours particulier cet été. Commence par là si tu hésites.</p>
-      </div>
-      <div class="chapter-grid priority-grid">${priorityCards}</div>
-    </section>
-
-    ${rappelsChaps.length ? `
-    <section class="rappels-section" data-theme="rappels">
-      <div class="priority-head">
-        <h2>🧰 Rappels de 4ᵉ</h2>
-        <p>Les bases de l'an dernier à réviser avant d'attaquer le programme de 3ᵉ.</p>
-      </div>
-      <div class="chapter-grid">${rappelsChaps.map(chapterCard).join('')}</div>
+      <div class="chapter-grid">${review.map((c) => chapterCard(c, niv)).join('')}</div>
     </section>` : ''}
 
     <div class="all-chapters">
-      <h2 class="section-title">Tous les chapitres par thème</h2>
+      <h2 class="section-title">Le programme de ${nivInfo.label}, par thème</h2>
+      ${prev ? `<p class="muted niv-hint">Des bases à revoir ? Tout le programme de ${prev.label} est dans l'onglet <a href="#/niveau/${prev.id}">${prev.label}</a>.</p>` : ''}
       ${themesHtml}
     </div>
   `;
@@ -666,30 +570,87 @@ function renderHome() {
   refreshTopbar();
 }
 
-function chapterCard(c) {
-  const cp = Store.chapter(c.id);
+/** Premier lancement : l'élève indique sa classe (modifiable dans ⚙️ Réglages). */
+function renderChoixNiveau(root) {
+  const enLigne = enLigneDisponible();
+  root.innerHTML = `
+    <section class="hero welcome">
+      <h1>Bienvenue sur Maths Collège 👋</h1>
+      <p class="hero-sub">Cours, méthodes et exercices corrigés de la 5ᵉ à la 3ᵉ.</p>
+      ${enLigne ? `
+      <div class="welcome-login">
+        <h2>🔑 J'ai un pseudo et un code</h2>
+        <p class="muted">Ta progression sera sauvegardée automatiquement et tu la retrouveras sur tous tes appareils.</p>
+        <div data-login></div>
+      </div>
+      <h2 class="welcome-sep">…ou continuer sans compte</h2>` : ''}
+      <p class="muted">Indique ta classe : ton programme s'affichera en premier. Tu pourras consulter
+        les autres niveaux, et changer dans ⚙️ Réglages.${enLigne ? ' Sans compte, la progression reste sur cet appareil.' : ''}</p>
+      <div class="niv-choice">
+        ${NIVEAUX.map((n) => `<button class="btn ${enLigne ? 'btn-ghost' : 'btn-primary'}" data-niveau="${n.id}">Je suis en ${n.label}</button>`).join('')}
+      </div>
+    </section>`;
+  if (enLigne) formulaireConnexion(root.querySelector('[data-login]'), { apres: () => router() });
+  root.querySelectorAll('[data-niveau]').forEach((b) => b.addEventListener('click', () => {
+    Store.setNiveau(b.dataset.niveau);
+    if (location.hash === '' || location.hash === '#/') renderHome(); else navigate('#/');
+  }));
+  refreshTopbar();
+}
+
+/** Formulaire pseudo + code à 4 chiffres (accueil et page « Mon compte »). */
+function formulaireConnexion(host, { apres } = {}) {
+  host.innerHTML = `
+    <form class="login-form" novalidate>
+      <label>Pseudo <input type="text" name="pseudo" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="20" required></label>
+      <label>Code (4 chiffres) <input type="password" name="code" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password" maxlength="4" required></label>
+      <button class="btn btn-primary" type="submit">Se connecter</button>
+      <p class="save-msg" data-msg aria-live="polite"></p>
+    </form>`;
+  const form = host.querySelector('form');
+  const msg = host.querySelector('[data-msg]');
+  const dire = (t, ok) => { msg.textContent = t; msg.className = 'save-msg ' + (ok ? 'is-ok' : 'is-err'); };
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pseudo = form.pseudo.value.trim(), code = form.code.value.trim();
+    if (!pseudo || !/^\d{4}$/.test(code)) { dire('Entre ton pseudo et ton code à 4 chiffres.', false); return; }
+    const btn = form.querySelector('button');
+    btn.disabled = true; dire('Connexion…', true);
+    try {
+      const eleve = await Sync.connecter(pseudo, code);
+      dire(`Bienvenue ${eleve.pseudo} ! Progression récupérée ✓`, true);
+      refreshTopbar();
+      setTimeout(() => apres && apres(), 500);
+    } catch (err) {
+      dire(err.message || 'Connexion impossible.', false);
+      btn.disabled = false;
+    }
+  });
+}
+
+function chapterCard(c, vueNiveau) {
   const badge = Store.hasBadge(c.id);
-  const started = cp.xp > 0 || Object.keys(cp.exercices).length > 0;
+  const started = aCommence(Store.data, c.id); // lecture seule : ne crée pas d'entrée vide
   const available = !!c.module;
   const m = Store.mastery(c.id);
+  const niv = niveauById(c.niveau);
   return `
-    <button class="chapter-card ${c.priorite ? 'is-priority' : ''} ${available ? '' : 'is-soon'}"
+    <button class="chapter-card ${available ? '' : 'is-soon'}"
             data-theme="${c.theme}" data-goto="${c.id}"
-            aria-label="Chapitre ${c.num} : ${c.titre}">
+            aria-label="${niv.label}, chapitre ${c.num} : ${c.titre}">
       <div class="cc-top">
         <span class="cc-ico">${c.icone}</span>
         <span class="cc-tags">
-          ${c.theme === 'rappels' ? '<span class="cc-4eme" title="Rappel de 4ᵉ">4ᵉ</span>' : ''}
+          ${c.niveau !== vueNiveau ? `<span class="cc-niv" title="${niv.long}">${niv.label}</span>` : ''}
           ${Store.isReview(c.id) ? '<span class="cc-review" title="À revoir">🔖</span>' : ''}
-          ${c.priorite ? '<span class="cc-star" title="Prioritaire">⭐</span>' : ''}
           ${badge ? '<span class="cc-medal" title="Chapitre validé">🏅</span>' : ''}
         </span>
       </div>
-      <div class="cc-num">${c.theme === 'rappels' ? 'Rappel · 4ᵉ' : 'Chapitre ' + c.num}</div>
+      <div class="cc-num">Chapitre ${c.num}</div>
       <div class="cc-title">${c.titre}</div>
       ${started && available ? `<div class="cc-mastery"><span style="width:${m}%"></span></div>` : ''}
       <div class="cc-status">
-        ${available ? (badge ? 'Validé ✓' : (started ? Store.masteryLabel(m) : 'Commencer')) : 'Bientôt disponible'}
+        ${available ? (badge ? 'Validé ✓' : (started ? Store.masteryLabel(m) : 'Commencer')) : 'En préparation'}
       </div>
     </button>`;
 }
@@ -704,14 +665,17 @@ async function renderChapter(id) {
   if (!meta) { root.innerHTML = `<p class="notice">Chapitre introuvable. <a href="#/">Retour à l'accueil</a></p>`; return; }
   root.setAttribute('data-theme', meta.theme);
   root.innerHTML = `<p class="loading">Chargement du chapitre…</p>`;
+  const niv = niveauById(meta.niveau);
 
   if (!meta.module) {
     root.innerHTML = `
-      <button class="btn btn-ghost btn-back" data-back>← Accueil</button>
-      <div class="chapter-soon"><span class="soon-ico">${meta.icone}</span><h1>${meta.titre}</h1>
-        <p>Ce chapitre arrive prochainement.</p>
-        <a class="btn btn-primary" href="#/chapitre/c01">Découvrir un chapitre complet →</a></div>`;
-    root.querySelector('[data-back]').addEventListener('click', () => navigate('#/'));
+      <button class="btn btn-ghost btn-back" data-back>← Programme de ${niv.label}</button>
+      <div class="chapter-soon"><span class="soon-ico">${meta.icone}</span>
+        <div class="ch-eyebrow">${niv.label} · Chapitre ${meta.num} · ${themeById(meta.theme).label}</div>
+        <h1>${meta.titre}</h1>
+        <p>Ce chapitre est en préparation : il arrive bientôt, en version express et en version complète.</p>
+        <a class="btn btn-primary" href="#/niveau/${meta.niveau}">Voir les chapitres disponibles →</a></div>`;
+    root.querySelector('[data-back]').addEventListener('click', () => navigate(`#/niveau/${meta.niveau}`));
     return;
   }
 
@@ -723,15 +687,38 @@ async function renderChapter(id) {
   buildChapterPage(root, meta, chap);
 }
 
+/**
+ * Contenu de la version « express » d'un chapitre (l'essentiel, pour réviser vite).
+ * Un chapitre peut la définir : `express: { cours: [index des blocs], exercices: ['e01', …] }`.
+ * Sinon, par défaut : définitions et propriétés du cours (sans exemples ni figures)
+ * et un exercice par niveau de difficulté.
+ */
+function expressContent(chap) {
+  const def = chap.express || {};
+  const allCours = chap.cours || [], allEx = chap.exercices || [];
+  const cours = Array.isArray(def.cours)
+    ? def.cours.map((i) => allCours[i]).filter(Boolean)
+    : allCours.filter((b) => !b.type || b.type === 'definition' || b.type === 'propriete');
+  const exercices = Array.isArray(def.exercices)
+    ? allEx.filter((e) => def.exercices.includes(e.id))
+    : [1, 2, 3].map((n) => allEx.find((e) => e.niveau === n && e.type !== 'ordonner_etapes') || allEx.find((e) => e.niveau === n)).filter(Boolean);
+  return { cours, exercices };
+}
+
 function buildChapterPage(root, meta, chap) {
+  const express = Store.data.settings.affichage === 'express';
+  const niv = niveauById(meta.niveau);
+  const theme = themeById(meta.theme);
+  const exp = express ? expressContent(chap) : null;
+
   root.innerHTML = `
-    <button class="btn btn-ghost btn-back" data-back>← Accueil</button>
+    <button class="btn btn-ghost btn-back" data-back>← Programme de ${niv.label}</button>
 
     <header class="chapter-hero">
       <span class="ch-ico">${chap.icone || meta.icone}</span>
       <div>
-        <div class="ch-eyebrow">${meta.theme === 'rappels' ? 'Rappel de 4ᵉ' : 'Chapitre ' + meta.num}${chap.priorite ? ' · ⭐ Prioritaire' : ''}</div>
-        <h1>${chap.titre}</h1>
+        <div class="ch-eyebrow">${niv.label} · Chapitre ${meta.num} · ${theme.label}</div>
+        <h1>${meta.titre}</h1>
       </div>
       <div class="ch-actions">
         <a class="btn btn-ghost" href="#/revision/${meta.id}">🖨️ Fiche de révision</a>
@@ -740,63 +727,72 @@ function buildChapterPage(root, meta, chap) {
       </div>
     </header>
 
+    <div class="mode-switch" role="group" aria-label="Version du chapitre">
+      <button class="mode-btn ${express ? 'active' : ''}" data-mode="express" aria-pressed="${express}">⚡ Express <small>l'essentiel</small></button>
+      <button class="mode-btn ${express ? '' : 'active'}" data-mode="complet" aria-pressed="${!express}">📚 Complète <small>tout le chapitre</small></button>
+    </div>
+
     <nav class="chapter-toc">
-      <a href="#sec-intro">À quoi ça sert</a>
+      ${express ? '' : '<a href="#sec-intro">À quoi ça sert</a>'}
       <a href="#sec-cours">Cours</a>
       <a href="#sec-methode">Méthode</a>
       <a href="#sec-exos">Exercices</a>
       <a href="#sec-quiz">Quiz bilan</a>
     </nav>
 
-    <section id="sec-intro" class="chapter-section intro-card"><h2>💡 À quoi ça sert ?</h2><p>${chap.intro || ''}</p></section>
-    <section id="sec-cours" class="chapter-section"><h2>📚 Cours essentiel</h2><div class="cours-list"></div></section>
-    <section id="sec-methode" class="chapter-section"><h2>🧭 Méthode pas-à-pas</h2><p class="muted">Clique pour révéler les étapes une à une.</p><ol class="methode-list"></ol></section>
-    <section id="sec-exos" class="chapter-section"><h2>✏️ Exercices interactifs</h2><div class="level-tabs"></div><div class="exos-host"></div></section>
+    ${express ? '' : `<section id="sec-intro" class="chapter-section intro-card"><h2>💡 À quoi ça sert ?</h2><p>${chap.intro || ''}</p></section>`}
+    <section id="sec-cours" class="chapter-section"><h2>📚 ${express ? "L'essentiel du cours" : 'Cours essentiel'}</h2><div class="cours-list"></div></section>
+    <section id="sec-methode" class="chapter-section">
+      <h2>🧭 ${express ? 'La méthode en bref' : 'Méthode pas-à-pas'}</h2>
+      ${express ? '<ol class="methode-bref"></ol>' : '<p class="muted">Clique pour révéler les étapes une à une.</p><ol class="methode-list"></ol>'}
+    </section>
+    <section id="sec-exos" class="chapter-section">
+      <h2>✏️ ${express ? 'Exercices clés' : 'Exercices interactifs'}</h2>
+      ${express ? '<p class="muted">Un exercice par niveau de difficulté. Pour t\'entraîner davantage, passe en version complète.</p>' : '<div class="level-tabs"></div>'}
+      <div class="exos-host"></div>
+    </section>
     <section id="sec-quiz" class="chapter-section quiz-section"><h2>🏁 Quiz bilan</h2><p class="muted">5 questions pour valider le chapitre et décrocher ton badge (80 % requis).</p><div class="quiz-host"></div></section>
   `;
-  root.querySelector('[data-back]').addEventListener('click', () => navigate('#/'));
+  root.querySelector('[data-back]').addEventListener('click', () => navigate(`#/niveau/${meta.niveau}`));
   const reviewBtn = root.querySelector('[data-review]');
   reviewBtn.addEventListener('click', () => {
     const on = Store.toggleReview(meta.id);
     reviewBtn.textContent = on ? '🔖 À revoir' : '🔖 Marquer à revoir';
     reviewBtn.setAttribute('aria-pressed', on);
   });
+  root.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => {
+    if (Store.data.settings.affichage === b.dataset.mode) return;
+    Store.data.settings.affichage = b.dataset.mode; Store.save();
+    buildChapterPage(root, meta, chap);
+  }));
 
   const coursHost = root.querySelector('.cours-list');
-  (chap.cours || []).forEach((bloc) => coursHost.appendChild(renderCoursBloc(bloc)));
+  (express ? exp.cours : (chap.cours || [])).forEach((bloc) => coursHost.appendChild(renderCoursBloc(bloc)));
 
-  const methodeHost = root.querySelector('.methode-list');
-  (chap.methode || []).forEach((etape, i) => {
-    const li = document.createElement('li');
-    li.className = 'methode-step';
-    li.innerHTML = `
-      <button class="step-toggle"><span class="step-num">${etape.etape ?? i + 1}</span><span class="step-titre">${etape.titre}</span><span class="step-chevron">▸</span></button>
-      <div class="step-body" hidden>${etape.explication || ''}</div>`;
-    const body = li.querySelector('.step-body');
-    li.querySelector('.step-toggle').addEventListener('click', () => {
-      const open = !body.hidden; body.hidden = open; li.classList.toggle('open', !open); if (!open) renderMath(body);
+  if (express) {
+    const bref = root.querySelector('.methode-bref');
+    bref.innerHTML = (chap.methode || []).map((e) => `<li><strong>${e.titre}</strong></li>`).join('');
+  } else {
+    const methodeHost = root.querySelector('.methode-list');
+    (chap.methode || []).forEach((etape, i) => {
+      const li = document.createElement('li');
+      li.className = 'methode-step';
+      li.innerHTML = `
+        <button class="step-toggle"><span class="step-num">${etape.etape ?? i + 1}</span><span class="step-titre">${etape.titre}</span><span class="step-chevron">▸</span></button>
+        <div class="step-body" hidden>${etape.explication || ''}</div>`;
+      const body = li.querySelector('.step-body');
+      li.querySelector('.step-toggle').addEventListener('click', () => {
+        const open = !body.hidden; body.hidden = open; li.classList.toggle('open', !open); if (!open) renderMath(body);
+      });
+      methodeHost.appendChild(li);
     });
-    methodeHost.appendChild(li);
-  });
+  }
 
-  const tabs = root.querySelector('.level-tabs');
   const exoHost = root.querySelector('.exos-host');
-  const niveaux = [{ n: 1, label: 'Découverte' }, { n: 2, label: 'Application' }, { n: 3, label: 'Défi' }];
   let curLevel = 1;
   let sessionStreak = 0;   // bonnes réponses d'affilée au niveau courant
-  let nudged = {};         // évite de re-proposer le même palier
-
-  function showLevel(n) {
-    curLevel = n; sessionStreak = 0;
-    exoHost.innerHTML = '';
-    tabs.querySelectorAll('button').forEach((b) => b.classList.toggle('active', parseInt(b.dataset.lvl, 10) === n));
-    const exos = (chap.exercices || []).filter((e) => e.niveau === n);
-    if (!exos.length) { exoHost.innerHTML = '<p class="muted">Aucun exercice à ce niveau.</p>'; return; }
-    exos.forEach((ex) => mountExercise(exoHost, ex, {
-      onCorrect: (xp) => { Store.bumpDaily(); Store.addXP(xp, meta.id); onLevelCorrect(); },
-      onAttempt: (exId, ok) => { Store.recordAttempt(meta.id, exId, ok); if (!ok) sessionStreak = 0; },
-    }));
-  }
+  const nudged = {};       // évite de re-proposer le même palier
+  let showLevel = null;    // défini en version complète (onglets de niveaux)
 
   // Difficulté adaptative : après 3 bonnes réponses d'affilée, proposer le niveau supérieur.
   function onLevelCorrect() {
@@ -812,23 +808,45 @@ function buildChapterPage(root, meta, chap) {
       banner.querySelector('[data-next]').addEventListener('click', () => { showLevel(next); window.scrollTo({ top: document.querySelector('#sec-exos').offsetTop - 80, behavior: 'smooth' }); });
     }
   }
-  niveaux.forEach((lv) => {
-    const count = (chap.exercices || []).filter((e) => e.niveau === lv.n).length;
-    const b = document.createElement('button');
-    b.className = 'level-tab lvl-' + lv.n; b.dataset.lvl = lv.n;
-    b.innerHTML = `<strong>Niveau ${lv.n}</strong><span>${lv.label} · ${count}</span>`;
-    b.addEventListener('click', () => showLevel(lv.n));
-    tabs.appendChild(b);
+  const hooks = (adaptive) => ({
+    onCorrect: (xp) => { Store.bumpDaily(); Store.addXP(xp, meta.id); if (adaptive) onLevelCorrect(); },
+    onAttempt: (exId, ok) => { Store.recordAttempt(meta.id, exId, ok); if (!ok) sessionStreak = 0; },
   });
-  showLevel(1);
+
+  if (express) {
+    exp.exercices.forEach((ex) => mountExercise(exoHost, ex, hooks(false)));
+  } else {
+    const tabs = root.querySelector('.level-tabs');
+    const niveaux = [{ n: 1, label: 'Découverte' }, { n: 2, label: 'Application' }, { n: 3, label: 'Défi' }];
+    showLevel = (n) => {
+      curLevel = n; sessionStreak = 0;
+      exoHost.innerHTML = '';
+      tabs.querySelectorAll('button').forEach((b) => b.classList.toggle('active', parseInt(b.dataset.lvl, 10) === n));
+      const exos = (chap.exercices || []).filter((e) => e.niveau === n);
+      if (!exos.length) { exoHost.innerHTML = '<p class="muted">Aucun exercice à ce niveau.</p>'; return; }
+      exos.forEach((ex) => mountExercise(exoHost, ex, hooks(true)));
+    };
+    niveaux.forEach((lv) => {
+      const count = (chap.exercices || []).filter((e) => e.niveau === lv.n).length;
+      const b = document.createElement('button');
+      b.className = 'level-tab lvl-' + lv.n; b.dataset.lvl = lv.n;
+      b.innerHTML = `<strong>Niveau ${lv.n}</strong><span>${lv.label} · ${count}</span>`;
+      b.addEventListener('click', () => showLevel(lv.n));
+      tabs.appendChild(b);
+    });
+    showLevel(1);
+  }
 
   const quizHost = root.querySelector('.quiz-host');
   if (chap.quiz_bilan && chap.quiz_bilan.length) {
     let lastScore = [0, chap.quiz_bilan.length];
     mountQuiz(quizHost, chap.quiz_bilan, {
       onComplete: (s, t) => { lastScore = [s, t]; Store.setQuizScore(meta.id, s, t); },
-      onPass: (xp) => { Store.addXP(xp, meta.id); Store.passQuiz(meta.id, lastScore[0], lastScore[1]); celebrate(meta); },
-    });
+      onPass: (xp, info) => {
+        if (!info.premiere) return; // déjà validé : score mis à jour par onComplete, pas d'XP
+        Store.addXP(xp, meta.id); Store.passQuiz(meta.id, lastScore[0], lastScore[1]); celebrate(meta);
+      },
+    }, { dejaValide: Store.hasBadge(meta.id) });
   } else { quizHost.innerHTML = '<p class="muted">Quiz à venir.</p>'; }
 
   renderMath(root);
@@ -861,13 +879,18 @@ function renderCoursBloc(bloc) {
 function renderDashboard() {
   const root = app();
   root.removeAttribute('data-theme');
-  const g = Store.globalProgress();
+  const g = Store.niveauProgress();
   const weak = Store.weakChapters();
   const errBy = Store.errorsByTheme();
 
-  const themeBars = THEMES.map((t) => {
-    const tp = Store.themeProgress(t.id);
-    const chaps = CHAPTERS.filter((c) => c.theme === t.id).map((c) => {
+  // Maîtrise : niveau de l'élève + tout autre niveau déjà travaillé.
+  const started = (c) => { const cp = Store.data.chapters[c.id]; return cp && (cp.xp > 0 || Object.keys(cp.exercices || {}).length > 0); };
+  const niveauxVus = NIVEAUX.filter((n) => n.id === Store.niveau() || chaptersOf(n.id).some(started));
+  const themeBars = niveauxVus.map((n) => `<h3 class="dash-niveau">${n.label}</h3>` + THEMES.map((t) => {
+    const list = chaptersOf(n.id, t.id).filter((c) => c.module);
+    if (!list.length) return '';
+    const tp = Store.themeProgress(t.id, n.id);
+    const chaps = list.map((c) => {
       const m = Store.mastery(c.id);
       return `<div class="dash-chap" data-goto="${c.id}">
         <span class="dash-chap-name">${c.icone} ${c.titre}</span>
@@ -876,7 +899,7 @@ function renderDashboard() {
     }).join('');
     return `<div class="dash-theme" data-theme="${t.id}">
       <h3>${t.icone} ${t.label} <span class="muted">(${tp.done}/${tp.total})</span></h3>${chaps}</div>`;
-  }).join('');
+  }).join('')).join('');
 
   root.innerHTML = `
     <button class="btn btn-ghost btn-back" data-back>← Accueil</button>
@@ -934,59 +957,24 @@ function renderDashboard() {
 
     <section class="chapter-section">
       <h2>💾 Sauvegarde</h2>
-      <p class="muted">Ta progression est stockée sur cet appareil. Pour la transférer sur un autre téléphone/ordi, le plus simple est le <strong>QR</strong> : affiche-le ici, scanne-le avec l'autre appareil.</p>
-      <div class="save-actions">
-        <button class="btn btn-primary" data-act="qr">📱 Transférer par QR</button>
-        <button class="btn btn-ghost" data-act="copy">📋 Copier le texte</button>
-        <button class="btn btn-ghost" data-act="download">⬇️ Télécharger (fichier)</button>
-        <label class="btn btn-ghost">⬆️ Importer un fichier<input type="file" accept="application/json" hidden data-act="file"></label>
-      </div>
-      <div class="save-qr" data-qr hidden></div>
+      ${enLigneDisponible() ? (Sync.compte()
+        ? `<p>☁️ Connecté·e en tant que <strong>${esc(Sync.compte().pseudo)}</strong> : ta progression est sauvegardée automatiquement en ligne.
+            <a href="#/compte">Mon compte →</a></p>`
+        : `<p class="muted">Ta progression est enregistrée sur cet appareil seulement. <a href="#/compte">Connecte-toi avec ton pseudo et ton code</a>
+            pour la sauvegarder en ligne et la retrouver partout.</p>`)
+        : '<p class="muted">Ta progression est enregistrée sur cet appareil.</p>'}
       <details class="save-advanced">
-        <summary>Transfert par texte (avancé)</summary>
-        <textarea class="save-box" data-box placeholder="Colle ici une sauvegarde puis clique « Restaurer »…"></textarea>
+        <summary>Sauvegarde de secours (fichier)</summary>
         <div class="save-actions">
-          <button class="btn btn-primary" data-act="restore">♻️ Restaurer</button>
+          <button class="btn btn-ghost" data-act="download">⬇️ Télécharger ma progression</button>
+          <label class="btn btn-ghost">⬆️ Importer un fichier<input type="file" accept="application/json" hidden data-act="file"></label>
         </div>
+        ${Sync && Sync.compte() ? '' : '<div class="save-actions"><button class="btn btn-danger" data-act="reset">🗑️ Réinitialiser ma progression</button></div>'}
       </details>
-      <div class="save-actions">
-        <button class="btn btn-danger" data-act="reset">🗑️ Réinitialiser ma progression</button>
-      </div>
       <p class="save-msg" data-msg aria-live="polite"></p>
     </section>
 
-    <section class="chapter-section">
-      <h2>☁️ Sauvegarde en ligne</h2>
-      <p class="muted">Sauvegarde ta progression sur Internet avec un petit <strong>code</strong>.
-        Sur un autre appareil, tape ce même code pour tout récupérer — pratique pour passer du téléphone à l'ordi.</p>
-      <div class="cloud-config" data-cloud-config ${Cloud.configured() ? 'hidden' : ''}>
-        <p class="muted">⚙️ Première utilisation : colle ici l'adresse de ton espace de stockage (ton « bucket » kvdb.io).</p>
-        <div class="save-actions">
-          <input type="text" class="cloud-input" data-cloud-base placeholder="https://kvdb.io/XXXXXXXX" inputmode="url" autocomplete="off">
-          <button class="btn btn-ghost" data-act="cloud-setbase">Enregistrer l'adresse</button>
-        </div>
-      </div>
-      <div class="cloud-main" data-cloud-main ${Cloud.configured() ? '' : 'hidden'}>
-        <div class="cloud-code-row">
-          <label>Mon code <input type="text" class="cloud-input cloud-code" data-cloud-code value="${Store.data.settings.cloudCode || ''}" placeholder="(aucun)" maxlength="12" autocomplete="off" spellcheck="false"></label>
-          <button class="btn btn-ghost" data-act="cloud-gen" title="Générer un nouveau code">🎲 Nouveau code</button>
-        </div>
-        <div class="save-actions">
-          <button class="btn btn-primary" data-act="cloud-save">☁️⬆️ Sauvegarder en ligne</button>
-          <button class="btn btn-ghost" data-act="cloud-load">☁️⬇️ Récupérer avec ce code</button>
-        </div>
-        <label class="cloud-auto"><input type="checkbox" data-cloud-auto ${Store.data.settings.cloudAuto ? 'checked' : ''}> Synchroniser automatiquement après chaque progrès</label>
-        <p class="save-msg" data-cloud-status aria-live="polite"></p>
-        <details class="save-advanced"><summary>Changer d'espace de stockage</summary>
-          <div class="save-actions">
-            <input type="text" class="cloud-input" data-cloud-base value="${cloudBase()}" placeholder="https://kvdb.io/XXXXXXXX" inputmode="url" autocomplete="off">
-            <button class="btn btn-ghost" data-act="cloud-setbase">Mettre à jour</button>
-          </div>
-        </details>
-      </div>
-    </section>
-
-    <p class="dash-footlink"><a href="#/diagnostic">🩺 Diagnostic de l'application</a></p>
+    <p class="dash-footlink">${enLigneDisponible() ? '<a href="#/prof">👩‍🏫 Espace tuteur</a> · ' : ''}<a href="#/diagnostic">🩺 Diagnostic de l'application</a></p>
   `;
 
   root.querySelector('[data-back]').addEventListener('click', () => navigate('#/'));
@@ -1007,100 +995,29 @@ function renderDashboard() {
     chartHost.innerHTML = '<p class="muted">Fais quelques exercices : ta courbe de progression apparaîtra ici. 📈</p>';
   }
 
-  // Sauvegarde
-  const box = root.querySelector('[data-box]');
+  // Sauvegarde de secours (fichier)
   const msg = root.querySelector('[data-msg]');
   const say = (t, ok = true) => { msg.textContent = t; msg.className = 'save-msg ' + (ok ? 'is-ok' : 'is-err'); };
-  root.querySelector('[data-act="copy"]').addEventListener('click', async () => {
-    const data = Store.exportJSON(); box.value = data;
-    try { await navigator.clipboard.writeText(data); say('Sauvegarde copiée ! Colle-la sur l\'autre appareil. ✓'); }
-    catch (e) { box.select(); say('Sélectionne le texte ci-dessous et copie-le manuellement.'); }
-  });
   root.querySelector('[data-act="download"]').addEventListener('click', () => {
     const blob = new Blob([Store.exportJSON()], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `maths3eme-sauvegarde-${ymd()}.json`; a.click(); URL.revokeObjectURL(a.href);
+    a.download = `maths-college-sauvegarde-${ymd()}.json`; a.click(); URL.revokeObjectURL(a.href);
     say('Fichier téléchargé. ✓');
   });
-  const summarize = (s) => `Sauvegarde restaurée ! ${s.xp} XP · ${s.chapters} chapitre(s) · ${s.badges} badge(s). ✓`;
   root.querySelector('[data-act="file"]').addEventListener('change', (e) => {
     const f = e.target.files[0]; if (!f) return;
     const r = new FileReader();
-    r.onload = () => { try { const s = Store.importJSON(r.result); say(summarize(s)); refreshTopbar(); setTimeout(() => renderDashboard(), 600); } catch (err) { say('Fichier invalide.', false); } };
+    r.onload = () => {
+      try { const s = Store.importJSON(r.result); say(`Sauvegarde importée ! ${s.xp} XP · ${s.chapters} chapitre(s) · ${s.badges} badge(s). ✓`); setTimeout(() => renderDashboard(), 600); }
+      catch (err) { say('Fichier invalide.', false); }
+    };
     r.readAsText(f);
   });
-  root.querySelector('[data-act="restore"]').addEventListener('click', () => {
-    if (!box.value.trim()) { say('Colle d\'abord une sauvegarde dans le cadre.', false); return; }
-    try { const s = Store.importJSON(box.value.trim()); say(summarize(s)); refreshTopbar(); setTimeout(() => renderDashboard(), 600); }
-    catch (e) { say('Sauvegarde invalide.', false); }
-  });
-  // Transfert par QR : encode un lien profond #/restore?d=… que l'autre
-  // appareil ouvre via son appareil photo natif (iOS + Android), sans scanner.
-  const qrBox = root.querySelector('[data-qr]');
-  root.querySelector('[data-act="qr"]').addEventListener('click', async () => {
-    if (!qrBox.hidden) { qrBox.hidden = true; qrBox.innerHTML = ''; return; }
-    qrBox.hidden = false;
-    qrBox.innerHTML = '<p class="loading">Génération du QR…</p>';
-    try {
-      const payload = btoa(unescape(encodeURIComponent(Store.exportCompact()))).replace(/\+/g, '-').replace(/\//g, '_');
-      const base = location.href.split('#')[0];
-      const url = `${base}#/restore?d=${payload}`;
-      const qr = await makeQR(url);
-      qrBox.innerHTML = `
-        <div class="qr-card">
-          ${qr}
-          <p class="muted">📷 Scanne ce code avec l'appareil photo de l'autre téléphone/ordi : il ouvrira l'appli avec ta progression.</p>
-        </div>`;
-    } catch (e) {
-      console.warn('[qr]', e);
-      qrBox.innerHTML = `<p class="notice">Impossible de générer le QR (hors-ligne ?). Utilise « Copier le texte » ou « Télécharger ».</p>`;
-    }
-  });
-  root.querySelector('[data-act="reset"]').addEventListener('click', () => {
+  const resetBtn = root.querySelector('[data-act="reset"]');
+  if (resetBtn) resetBtn.addEventListener('click', () => {
     if (confirm('Effacer toute la progression sur cet appareil ? Cette action est irréversible.')) {
       Store.reset(); say('Progression réinitialisée.'); refreshTopbar(); setTimeout(() => renderDashboard(), 400);
     }
-  });
-
-  // — Sauvegarde en ligne (cloud) —
-  const cstatus = root.querySelector('[data-cloud-status]');
-  const csay = (t, ok = true) => { if (cstatus) { cstatus.textContent = t; cstatus.className = 'save-msg ' + (ok ? 'is-ok' : 'is-err'); } };
-  const codeInput = root.querySelector('[data-cloud-code]');
-  const ensureCode = () => {
-    let c = (codeInput.value || '').trim().toUpperCase();
-    if (!c) { c = genCloudCode(); codeInput.value = c; }
-    Store.data.settings.cloudCode = c; Store.save();
-    return c;
-  };
-  root.querySelectorAll('[data-act="cloud-setbase"]').forEach((btn) => btn.addEventListener('click', () => {
-    const field = btn.previousElementSibling && btn.previousElementSibling.matches('[data-cloud-base]') ? btn.previousElementSibling : btn.parentElement.querySelector('[data-cloud-base]');
-    const url = field ? field.value : '';
-    if (!/^https?:\/\//.test(url)) { csay("Adresse invalide (elle doit commencer par https://).", false); return; }
-    setCloudBase(url); say('Espace de stockage enregistré. ✓'); setTimeout(() => renderDashboard(), 300);
-  }));
-  const genBtn = root.querySelector('[data-act="cloud-gen"]');
-  if (genBtn) genBtn.addEventListener('click', () => { codeInput.value = genCloudCode(); Store.data.settings.cloudCode = codeInput.value; Store.save(); csay('Nouveau code généré : note-le bien !'); });
-  const autoBox = root.querySelector('[data-cloud-auto]');
-  if (autoBox) autoBox.addEventListener('change', () => { Store.data.settings.cloudAuto = autoBox.checked; if (autoBox.checked) ensureCode(); Store.save(); csay(autoBox.checked ? 'Synchro automatique activée.' : 'Synchro automatique désactivée.'); });
-  const cloudSaveBtn = root.querySelector('[data-act="cloud-save"]');
-  if (cloudSaveBtn) cloudSaveBtn.addEventListener('click', async () => {
-    const code = ensureCode();
-    csay('Sauvegarde en ligne…');
-    try { await Cloud.save(code, Store.exportJSON()); csay(`Sauvegardé en ligne sous le code « ${code} ». Note-le pour le réutiliser ! ✓`); }
-    catch (e) { csay(e.message || 'Échec de la sauvegarde en ligne.', false); }
-  });
-  const cloudLoadBtn = root.querySelector('[data-act="cloud-load"]');
-  if (cloudLoadBtn) cloudLoadBtn.addEventListener('click', async () => {
-    const code = (codeInput.value || '').trim().toUpperCase();
-    if (!code) { csay('Entre d\'abord ton code.', false); return; }
-    csay('Récupération en ligne…');
-    try {
-      const json = await Cloud.load(code);
-      const s = Store.importJSON(json);
-      Store.data.settings.cloudCode = code; Store.save();
-      csay(`Progression récupérée ! ${s.xp} XP · ${s.chapters} chapitre(s). ✓`);
-      refreshTopbar(); setTimeout(() => renderDashboard(), 700);
-    } catch (e) { csay(e.message || 'Aucune sauvegarde trouvée pour ce code.', false); }
   });
 
   refreshTopbar();
@@ -1160,7 +1077,7 @@ async function renderRevision(id) {
       <button class="btn btn-primary" data-print>🖨️ Imprimer / PDF</button>
     </div>
     <article class="print-sheet">
-      <h1>${chap.icone || meta.icone} ${chap.titre} — Fiche de révision</h1>
+      <h1>${chap.icone || meta.icone} ${meta.titre} — Fiche de révision</h1>
       <p class="muted">${chap.intro || ''}</p>
       <h2>Cours essentiel</h2>
       <div class="cours-list"></div>
@@ -1198,7 +1115,10 @@ function enonceForPrint(exo, s) {
 function renderFiche() {
   const root = app();
   root.removeAttribute('data-theme');
-  const opts = CHAPTERS.filter((c) => c.module).map((c) => `<option value="${c.id}">${c.num}. ${c.titre}</option>`).join('');
+  const opts = NIVEAUX.map((n) => {
+    const list = chaptersOf(n.id).filter((c) => c.module);
+    return list.length ? `<optgroup label="${n.long}">${list.map((c) => `<option value="${c.id}">${n.label} · ${c.num}. ${c.titre}</option>`).join('')}</optgroup>` : '';
+  }).join('');
   root.innerHTML = `
     <button class="btn btn-ghost btn-back" data-back>← Accueil</button>
     <header class="dash-hero"><h1>🖨️ Générateur de fiches</h1>
@@ -1208,6 +1128,7 @@ function renderFiche() {
         <label>Chapitre <select data-chap>${opts}</select></label>
         <label>Niveau
           <select data-lvl><option value="1">1 — Découverte</option><option value="2">2 — Application</option><option value="3">3 — Défi</option></select></label>
+
         <label>Nombre d'exercices <input type="number" data-count value="6" min="1" max="15"></label>
         <button class="btn btn-primary" data-gen>Générer la fiche</button>
         <button class="btn btn-ghost" data-print disabled>🖨️ Imprimer / PDF</button>
@@ -1236,7 +1157,7 @@ function renderFiche() {
       items.push({ consigne: s.consigne || exo.consigne || '', enonce: enonceForPrint(exo, s), rep: answerOf(exo, s) });
     }
     sheet.innerHTML = `
-      <h1>${chap.titre} — Niveau ${lvl}</h1>
+      <h1>${meta.titre} (${niveauById(meta.niveau).label}) — Niveau ${lvl}</h1>
       <p class="fiche-meta">Nom : ……………………………………  Date : ……………</p>
       <ol class="fiche-exos">${items.map((it) => `<li>${it.consigne ? `<em>${it.consigne}</em><br>` : ''}${it.enonce}</li>`).join('')}</ol>
       <div class="fiche-corrige"><h2>Corrigé</h2><ol>${items.map((it) => `<li>${typeof it.rep === 'string' ? `$${it.rep}$` : it.rep}</li>`).join('')}</ol></div>`;
@@ -1259,21 +1180,25 @@ async function renderExamen() {
 
   const params = new URLSearchParams((location.hash.split('?')[1]) || '');
   const scope = params.get('scope');
+  const niv = niveauById(params.get('niveau')) ? params.get('niveau') : Store.niveau();
+  const dispo = (c) => c.module && c.niveau === niv;
 
   if (!scope) {
+    const themes = THEMES.filter((t) => chaptersOf(niv, t.id).some((c) => c.module));
     root.innerHTML = `
       <button class="btn btn-ghost btn-back" data-back>← Accueil</button>
       <header class="dash-hero"><h1>📝 Examen blanc</h1>
         <p class="muted">Une série de questions tirées au hasard pour t'entraîner comme le jour J. Choisis un thème ou tout le programme.</p></header>
+      <nav class="niv-tabs" aria-label="Niveau">${NIVEAUX.map((n) => `<a class="niv-tab ${n.id === niv ? 'active' : ''}" href="#/examen?niveau=${n.id}">${n.label}</a>`).join('')}</nav>
       <section class="chapter-section">
-        <div class="exam-choices">
-          <button class="btn btn-primary" data-scope="all">🎓 Tout le programme</button>
+        ${themes.length ? `<div class="exam-choices">
+          <button class="btn btn-primary" data-scope="all">🎓 Tout le programme de ${niveauById(niv).label}</button>
           ${Store.weakChapters().length ? '<button class="btn btn-primary btn-review" data-scope="review">🎯 Réviser mes erreurs</button>' : ''}
-          ${THEMES.map((t) => `<button class="btn btn-ghost" data-scope="${t.id}">${t.icone} ${t.label}</button>`).join('')}
-        </div>
+          ${themes.map((t) => `<button class="btn btn-ghost" data-scope="${t.id}">${t.icone} ${t.label}</button>`).join('')}
+        </div>` : `<p class="muted">Les chapitres de ${niveauById(niv).label} sont en préparation : l'examen blanc arrivera avec eux.</p>`}
       </section>`;
     root.querySelector('[data-back]').addEventListener('click', () => navigate('#/'));
-    root.querySelectorAll('[data-scope]').forEach((b) => b.addEventListener('click', () => navigate(`#/examen?scope=${b.dataset.scope}`)));
+    root.querySelectorAll('[data-scope]').forEach((b) => b.addEventListener('click', () => navigate(`#/examen?niveau=${niv}&scope=${b.dataset.scope}`)));
     return;
   }
 
@@ -1283,10 +1208,10 @@ async function renderExamen() {
   let list, reviewNote = '';
   if (scope === 'review') {
     const weak = Store.weakChapters().map((w) => w.c).filter((c) => c.module);
-    list = weak.length ? weak : CHAPTERS.filter((c) => c.module);
+    list = weak.length ? weak : CHAPTERS.filter(dispo);
     reviewNote = weak.length ? '🎯 Révision ciblée sur tes chapitres à retravailler.' : '';
   } else {
-    list = CHAPTERS.filter((c) => c.module && (scope === 'all' || c.theme === scope));
+    list = CHAPTERS.filter((c) => dispo(c) && (scope === 'all' || c.theme === scope));
   }
   const questions = [];
   for (const c of list) {
@@ -1294,7 +1219,7 @@ async function renderExamen() {
   }
   // En mode révision, complète avec d'autres chapitres si le vivier est trop maigre.
   if (scope === 'review' && questions.length < 8) {
-    for (const c of CHAPTERS.filter((c) => c.module && !list.includes(c))) {
+    for (const c of CHAPTERS.filter((c) => dispo(c) && !list.includes(c))) {
       try { const mod = await loadChapter(c); (mod.quiz_bilan || []).forEach((q) => questions.push(q)); } catch (e) { /* ignore */ }
       if (questions.length >= 12) break;
     }
@@ -1533,10 +1458,11 @@ async function renderRevise() {
   // mais pas maîtrisés, sinon les chapitres prioritaires.
   let sources = Store.weakChapters().map((w) => w.c).filter((c) => c && c.module);
   if (sources.length < 2) {
-    const started = CHAPTERS.filter((c) => c.module && Store.mastery(c.id) < 100 && (Store.chapter(c.id).xp > 0 || Object.keys(Store.chapter(c.id).exercices).length > 0));
+    const started = CHAPTERS.filter((c) => c.module && Store.mastery(c.id) < 100 && aCommence(Store.data, c.id));
     sources = [...new Set([...sources, ...started])];
   }
-  if (!sources.length) sources = CHAPTERS.filter((c) => c.module && c.priorite);
+  if (!sources.length) sources = chaptersOf(Store.niveau()).filter((c) => c.module);
+  if (!sources.length) sources = CHAPTERS.filter((c) => c.module); // niveau encore en préparation
   sources = sources.slice(0, 4);
 
   root.innerHTML = `<p class="loading">Préparation de ta révision…</p>`;
@@ -1584,38 +1510,323 @@ async function renderRevise() {
 }
 
 // ---------------------------------------------------------------------
-//  Restauration par lien profond (#/restore?d=…) — utilisé par le QR
+//  Mon compte (élève) : connexion, état de la sauvegarde, déconnexion
 // ---------------------------------------------------------------------
 
-function renderRestore() {
+/** « il y a 5 min », « il y a 3 j »… */
+function ilYa(ms) {
+  if (!ms) return 'jamais';
+  const s = Math.round((Date.now() - ms) / 1000);
+  if (s < 60) return 'à l\'instant';
+  if (s < 3600) return `il y a ${Math.round(s / 60)} min`;
+  if (s < 86400) return `il y a ${Math.round(s / 3600)} h`;
+  return `il y a ${Math.round(s / 86400)} j`;
+}
+
+function renderCompte() {
   const root = app();
   root.removeAttribute('data-theme');
-  const params = new URLSearchParams((location.hash.split('?')[1]) || '');
-  const d = params.get('d');
-  let summary = null, error = null;
-  if (d) {
-    try {
-      const json = decodeURIComponent(escape(atob(d.replace(/-/g, '+').replace(/_/g, '/'))));
-      summary = Store.importJSON(json);
-    } catch (e) { error = e; }
+  const back = '<button class="btn btn-ghost btn-back" data-back>← Accueil</button>';
+  if (!enLigneDisponible()) {
+    root.innerHTML = `${back}<header class="dash-hero"><h1>👤 Mon compte</h1></header>
+      <section class="chapter-section"><p class="muted">La sauvegarde en ligne n'est pas encore activée sur ce site :
+      ta progression reste sur cet appareil.</p></section>`;
+    root.querySelector('[data-back]').addEventListener('click', () => navigate('#/'));
+    return;
   }
-  root.innerHTML = `
-    <button class="btn btn-ghost btn-back" data-back>← Accueil</button>
-    <header class="dash-hero"><h1>📥 Restauration de sauvegarde</h1></header>
+  const compte = Sync.compte();
+  const st = STATUTS_SYNCHRO[Sync.statut] || STATUTS_SYNCHRO.deconnecte;
+  const niv = niveauById(Store.data.settings.niveau);
+
+  root.innerHTML = `${back}
+    <header class="dash-hero"><h1>👤 Mon compte</h1></header>
+    ${compte ? `
     <section class="chapter-section">
-      ${!d ? `<p class="notice">Aucune donnée à restaurer dans ce lien.</p>`
-        : error ? `<p class="notice">❌ Ce lien de sauvegarde est invalide ou incomplet.</p>`
-        : `<p class="save-msg is-ok">✅ Sauvegarde restaurée sur cet appareil !</p>
-           <p>Tu repars avec <strong>${summary.xp} XP</strong> (niveau ${Store.level()}),
-              <strong>${summary.chapters}</strong> chapitre(s) suivi(s)
-              et <strong>${summary.badges}</strong> badge(s).</p>`}
-      <div class="save-actions">
-        <a class="btn btn-primary" href="#/">▶️ Continuer</a>
-        <a class="btn btn-ghost" href="#/tableau">📊 Voir mon tableau de bord</a>
+      <div class="compte-card">
+        <span class="compte-avatar">🧑‍🎓</span>
+        <div>
+          <h2 style="margin:0">${esc(compte.pseudo)}</h2>
+          <p class="muted" style="margin:0">${niv ? `Classe : ${niv.label} · ` : ''}${Store.data.xp} XP</p>
+        </div>
       </div>
-    </section>`;
+      <p class="compte-statut"><span class="statut-point ${st.cls}"></span> ${st.txt}</p>
+      <p class="muted">Dernière synchronisation : ${ilYa(compte.derniereSynchro)}. Sur un autre appareil, connecte-toi
+        avec le même pseudo et le même code : tu retrouveras tout.</p>
+      ${Sync.statut === 'reconnexion' ? '<div class="welcome-login"><h2>🔑 Reconnecte-toi</h2><div data-login></div></div>' : ''}
+      <div class="save-actions">
+        <button class="btn btn-primary" data-act="sync">🔄 Synchroniser maintenant</button>
+        <button class="btn btn-ghost" data-act="logout">🚪 Se déconnecter</button>
+      </div>
+      <p class="save-msg" data-msg aria-live="polite"></p>
+    </section>` : `
+    <section class="chapter-section">
+      <h2>🔑 Se connecter</h2>
+      <p class="muted">Avec le pseudo et le code à 4 chiffres donnés par ton professeur, ta progression est
+        sauvegardée automatiquement et tu la retrouves sur tous tes appareils. Ce que tu as déjà fait sur cet
+        appareil est conservé.</p>
+      <div data-login></div>
+    </section>`}`;
   root.querySelector('[data-back]').addEventListener('click', () => navigate('#/'));
-  if (summary) { refreshTopbar(); }
+
+  const login = root.querySelector('[data-login]');
+  if (login) {
+    formulaireConnexion(login, { apres: () => navigate('#/') });
+    if (compte) login.querySelector('[name="pseudo"]').value = compte.pseudo;
+  }
+  if (!compte) return;
+
+  const msg = root.querySelector('[data-msg]');
+  const dire = (t, ok = true) => { msg.textContent = t; msg.className = 'save-msg ' + (ok ? 'is-ok' : 'is-err'); };
+  root.querySelector('[data-act="sync"]').addEventListener('click', async (e) => {
+    e.target.disabled = true; dire('Synchronisation…');
+    await Sync.tirer();
+    renderCompte();
+  });
+  root.querySelector('[data-act="logout"]').addEventListener('click', async (e) => {
+    e.target.disabled = true; dire('Envoi des derniers progrès…');
+    let ok = await Sync.deconnecter();
+    if (!ok) {
+      if (!confirm('Tes derniers progrès n\'ont pas pu être envoyés (pas d\'Internet ?).\nTe déconnecter quand même ? Ces progrès seront perdus.')) { renderCompte(); return; }
+      ok = await Sync.deconnecter({ forcer: true });
+    }
+    // Appareil éventuellement partagé : on efface la progression locale.
+    Store.reset({ tout: true });
+    applySettings(); refreshTopbar();
+    navigate('#/');
+  });
+}
+
+// ---------------------------------------------------------------------
+//  Espace tuteur : élèves, codes, classes, progression détaillée
+// ---------------------------------------------------------------------
+
+const codeAuHasard = () => String(crypto.getRandomValues(new Uint32Array(1))[0] % 10000).padStart(4, '0');
+
+/** Appel tuteur : si la session a expiré, on revient au formulaire de mot de passe. */
+async function appelTuteur(action, params = {}) {
+  const t = Tuteur.lire();
+  try { return await appeler(action, { jeton: t && t.jeton, ...params }); }
+  catch (e) {
+    if (e.code === 'JETON_TUTEUR' || e.code === 'CONFIG') { Tuteur.effacer(); }
+    throw e;
+  }
+}
+
+async function renderProf() {
+  const root = app();
+  root.removeAttribute('data-theme');
+  const entete = (actions = '') => `
+    <button class="btn btn-ghost btn-back" data-back>← Accueil</button>
+    <header class="dash-hero"><h1>👩‍🏫 Espace tuteur</h1>${actions}</header>`;
+  const lierRetour = () => root.querySelector('[data-back]').addEventListener('click', () => navigate('#/'));
+
+  if (!enLigneDisponible()) {
+    root.innerHTML = `${entete()}<section class="chapter-section"><p class="muted">Renseigne d'abord l'adresse du
+      script Google dans <code>js/config.js</code> (voir <code>backend/INSTALLATION.md</code>).</p></section>`;
+    lierRetour();
+    return;
+  }
+
+  // — Connexion tuteur —
+  if (!Tuteur.lire()) {
+    root.innerHTML = `${entete()}
+      <section class="chapter-section">
+        <p class="muted">Mot de passe choisi dans l'onglet « Config » de ton Google Sheet.</p>
+        <form class="login-form" data-form>
+          <label>Mot de passe <input type="password" name="mdp" autocomplete="current-password" required></label>
+          <button class="btn btn-primary" type="submit">Entrer</button>
+          <p class="save-msg" data-msg aria-live="polite"></p>
+        </form>
+      </section>`;
+    lierRetour();
+    const form = root.querySelector('[data-form]'), msg = root.querySelector('[data-msg]');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.className = 'save-msg is-ok'; msg.textContent = 'Connexion…';
+      try {
+        const r = await appeler('tuteur_connexion', { motDePasse: form.mdp.value });
+        Tuteur.ecrire({ jeton: r.jeton });
+        renderProf();
+      } catch (err) { msg.className = 'save-msg is-err'; msg.textContent = err.message; }
+    });
+    return;
+  }
+
+  root.innerHTML = `${entete()}<p class="loading">Chargement des élèves…</p>`;
+  lierRetour();
+  let liste;
+  try { liste = await appelTuteur('tuteur_liste'); }
+  catch (e) {
+    if (!Tuteur.lire()) { renderProf(); return; }
+    root.innerHTML = `${entete()}<p class="notice">${esc(e.message)} <button class="btn btn-ghost" data-retry>Réessayer</button></p>`;
+    lierRetour();
+    root.querySelector('[data-retry]').addEventListener('click', renderProf);
+    return;
+  }
+
+  const optionsClasse = (sel) => NIVEAUX.map((n) => `<option value="${n.id}" ${n.id === sel ? 'selected' : ''}>${n.label}</option>`).join('');
+  const eleves = [...liste.eleves].sort((a, b) => (b.synchro || 0) - (a.synchro || 0));
+  const carte = (el) => {
+    const vieux = !el.synchro || Date.now() - el.synchro > 7 * 86400000;
+    return `
+    <article class="eleve-card" data-pseudo="${esc(el.pseudo)}">
+      <div class="eleve-head">
+        <h3>🧑‍🎓 ${esc(el.pseudo)}</h3>
+        <span class="muted">Dernière activité : <span class="${vieux ? 'age-ancien' : ''}">${ilYa(el.synchro)}</span></span>
+      </div>
+      <div class="eleve-stats">
+        <span>Classe <select class="prof-select" data-classe aria-label="Classe de ${esc(el.pseudo)}"><option value="">—</option>${optionsClasse(el.niveau)}</select></span>
+        <span><strong>${el.xp}</strong> XP</span>
+        <span>Chapitres validés : <strong>${esc(el.valides || '—')}</strong></span>
+        <span>Exos réussis (7 j) : <strong>${el.exos7j}</strong></span>
+        <span>Série : <strong>${el.serie}</strong> j</span>
+      </div>
+      ${el.coince ? `<p style="margin:0.2rem 0">🎯 À retravailler : <strong>${esc(el.coince)}</strong></p>` : ''}
+      ${el.dernier ? `<p class="muted" style="margin:0.2rem 0">Dernier chapitre ouvert : ${esc(el.dernier)}</p>` : ''}
+      <div class="eleve-actions">
+        <a class="btn btn-primary" href="#/prof/eleve/${encodeURIComponent(el.pseudo)}">📈 Détails</a>
+        <button class="btn btn-ghost" data-voir-code>🔑 Voir le code</button>
+        <button class="btn btn-ghost" data-nouveau-code>🎲 Nouveau code</button>
+      </div>
+      <p class="save-msg" data-msg aria-live="polite"></p>
+    </article>`;
+  };
+
+  root.innerHTML = `${entete(`<p class="muted">${eleves.length} élève${eleves.length > 1 ? 's' : ''} ·
+      <a href="${esc(liste.urlFeuille)}" target="_blank" rel="noopener">Ouvrir le Google Sheet ↗</a> ·
+      <a href="#/prof" data-deco>Se déconnecter</a></p>`)}
+    <section class="chapter-section">
+      <h2>➕ Ajouter un élève</h2>
+      <form class="prof-form" data-creer>
+        <label>Pseudo <input name="pseudo" maxlength="20" autocapitalize="off" spellcheck="false" placeholder="ex. lea" required></label>
+        <label>Code (4 chiffres)
+          <span class="code-row"><input name="code" inputmode="numeric" maxlength="4" value="${codeAuHasard()}" required>
+          <button class="btn btn-ghost" type="button" data-hasard title="Autre code au hasard">🎲</button></span></label>
+        <label>Classe <select name="niveau">${optionsClasse('3e')}</select></label>
+        <button class="btn btn-primary" type="submit">Créer le compte</button>
+      </form>
+      <p class="save-msg" data-msg-creer aria-live="polite"></p>
+    </section>
+    <section class="chapter-section">
+      <h2>🧑‍🎓 Mes élèves</h2>
+      ${eleves.length ? `<div class="eleve-list">${eleves.map(carte).join('')}</div>` : '<p class="muted">Aucun élève pour l\'instant : crée un premier compte ci-dessus.</p>'}
+    </section>`;
+  lierRetour();
+  root.querySelector('[data-deco]').addEventListener('click', (e) => { e.preventDefault(); Tuteur.effacer(); renderProf(); });
+
+  // — Création d'un compte —
+  const form = root.querySelector('[data-creer]');
+  const msgCreer = root.querySelector('[data-msg-creer]');
+  root.querySelector('[data-hasard]').addEventListener('click', () => { form.code.value = codeAuHasard(); });
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pseudo = form.pseudo.value.trim(), code = form.code.value.trim(), niveau = form.niveau.value;
+    msgCreer.className = 'save-msg is-ok'; msgCreer.textContent = 'Création…';
+    try {
+      await appelTuteur('tuteur_creer', { pseudo, code, niveau });
+      await renderProf();
+      const m = app().querySelector('[data-msg-creer]');
+      if (m) { m.className = 'save-msg is-ok'; m.innerHTML = `✓ Compte créé. Donne à ton élève : pseudo <strong>${esc(pseudo)}</strong>, code <span class="code-affiche">${esc(code)}</span>`; }
+    } catch (err) {
+      if (!Tuteur.lire()) { renderProf(); return; }
+      msgCreer.className = 'save-msg is-err'; msgCreer.textContent = err.message;
+    }
+  });
+
+  // — Actions par élève —
+  root.querySelectorAll('.eleve-card').forEach((card) => {
+    const pseudo = card.dataset.pseudo;
+    const el = eleves.find((x) => x.pseudo === pseudo);
+    const msg = card.querySelector('[data-msg]');
+    const dire = (html, ok = true) => { msg.className = 'save-msg ' + (ok ? 'is-ok' : 'is-err'); msg.innerHTML = html; };
+    card.querySelector('[data-voir-code]').addEventListener('click', () => dire(`Code actuel : <span class="code-affiche">${esc(el.code)}</span>`));
+    card.querySelector('[data-nouveau-code]').addEventListener('click', async () => {
+      if (!confirm(`Donner un nouveau code à ${pseudo} ? Ses appareils devront se reconnecter.`)) return;
+      const code = codeAuHasard();
+      try {
+        await appelTuteur('tuteur_modifier', { pseudo, code });
+        el.code = code;
+        dire(`Nouveau code : <span class="code-affiche">${code}</span> — donne-le à ${esc(pseudo)}.`);
+      } catch (err) { if (!Tuteur.lire()) renderProf(); else dire(esc(err.message), false); }
+    });
+    card.querySelector('[data-classe]').addEventListener('change', async (e) => {
+      if (!e.target.value) return;
+      try { await appelTuteur('tuteur_modifier', { pseudo, niveau: e.target.value }); dire('Classe mise à jour ✓'); }
+      catch (err) { if (!Tuteur.lire()) renderProf(); else dire(esc(err.message), false); }
+    });
+  });
+}
+
+async function renderProfEleve(pseudo) {
+  const root = app();
+  root.removeAttribute('data-theme');
+  if (!enLigneDisponible() || !Tuteur.lire()) { navigate('#/prof'); return; }
+  root.innerHTML = '<p class="loading">Chargement de la progression…</p>';
+  let rep;
+  try { rep = await appelTuteur('tuteur_eleve', { pseudo }); }
+  catch (e) {
+    if (!Tuteur.lire()) { navigate('#/prof'); return; }
+    root.innerHTML = `<button class="btn btn-ghost btn-back" data-back>← Élèves</button><p class="notice">${esc(e.message)}</p>`;
+    root.querySelector('[data-back]').addEventListener('click', () => navigate('#/prof'));
+    return;
+  }
+  const data = Store.normaliser(rep.donnees || {});
+  const niveau = rep.eleve.niveau || data.settings.niveau || '3e';
+  const niv = niveauById(niveau);
+  const p = progressionNiveau(data, niveau);
+  const fragiles = chapitresFragiles(data);
+
+  // Activité des 14 derniers jours
+  const jours = Array.from({ length: 14 }, (_, i) => ymd(new Date(Date.now() - (13 - i) * 86400000)));
+  const valeurs = jours.map((d) => data.activite[d] || 0);
+  const max = Math.max(1, ...valeurs);
+
+  // Maîtrise : classe de l'élève + autres niveaux travaillés
+  const niveauxVus = NIVEAUX.filter((n) => n.id === niveau || chaptersOf(n.id).some((c) => aCommence(data, c.id)));
+  const maitriseHtml = niveauxVus.map((n) => `<h3 class="dash-niveau">${n.label}</h3>` + THEMES.map((t) => {
+    const list = chaptersOf(n.id, t.id).filter((c) => c.module);
+    if (!list.length) return '';
+    return `<div class="dash-theme" data-theme="${t.id}"><h3>${t.icone} ${t.label}</h3>${list.map((c) => {
+      const m = maitrise(data, c.id), ch = data.chapters[c.id] || {}, err = erreursChapitre(data, c.id);
+      return `<div class="dash-chap">
+        <span class="dash-chap-name">${c.icone} ${c.titre}${ch.quizPassed ? ' 🏅' : ''}${ch.quizScore ? ` <span class="muted">(quiz ${esc(ch.quizScore)})</span>` : ''}</span>
+        <span class="dash-chap-bar" data-theme="${c.theme}"><span style="width:${m}%"></span></span>
+        <span class="dash-chap-pct" title="${err.total ? `${err.ok} réussite(s), ${err.ko} erreur(s)` : 'pas encore travaillé'}">${m}%</span></div>`;
+    }).join('')}</div>`;
+  }).join('')).join('');
+
+  root.innerHTML = `
+    <button class="btn btn-ghost btn-back" data-back>← Élèves</button>
+    <header class="dash-hero">
+      <h1>📈 ${esc(rep.eleve.pseudo)} <span class="muted">${niv ? niv.label : ''}</span></h1>
+      <p class="muted">Dernière sauvegarde : ${ilYa(rep.maj)} · code <span class="code-affiche">${esc(rep.eleve.code)}</span></p>
+      <div class="dash-stats">
+        <div class="dash-stat"><span class="ds-val">${data.xp}</span><span class="ds-lab">XP</span></div>
+        <div class="dash-stat"><span class="ds-val">${p.done}/${p.total}</span><span class="ds-lab">validés (${niv ? niv.label : ''})</span></div>
+        <div class="dash-stat"><span class="ds-val">${exosReussis(data, 7)}</span><span class="ds-lab">exos 7 j</span></div>
+        <div class="dash-stat"><span class="ds-val">${exosReussis(data, 30)}</span><span class="ds-lab">exos 30 j</span></div>
+        <div class="dash-stat"><span class="ds-val">🔥 ${serieActuelle(data)}</span><span class="ds-lab">jours</span></div>
+      </div>
+    </header>
+    ${rep.donnees ? `
+    <section class="chapter-section">
+      <h2>📅 Exercices réussis (14 derniers jours)</h2>
+      <div class="activite-bars">${valeurs.map((v, i) => `<span style="height:${Math.round(v / max * 100)}%" title="${jours[i]} : ${v} exercice(s)"></span>`).join('')}</div>
+      <div class="activite-legende"><span>${jours[0].slice(5)}</span><span>aujourd'hui</span></div>
+    </section>
+    <section class="chapter-section">
+      <h2>🎯 Ce qui coince</h2>
+      ${fragiles.length ? `<div class="weak-list">${fragiles.map((w) => `
+        <div class="weak-item" data-theme="${w.c.theme}">
+          <span>${w.c.icone} ${w.c.titre} <span class="muted">(${niveauById(w.c.niveau).label})</span></span>
+          <span class="weak-meta">${w.review ? '🔖 ' : ''}${w.total ? `${Math.round(w.rate * 100)} % d'erreurs (${w.ko}/${w.total})` : 'marqué à revoir'}</span>
+        </div>`).join('')}</div>` : '<p class="muted">Rien à signaler.</p>'}
+    </section>
+    <section class="chapter-section">
+      <h2>🧭 Maîtrise par chapitre</h2>
+      <div class="dash-themes">${maitriseHtml}</div>
+    </section>` : '<section class="chapter-section"><p class="muted">Pas encore de progression enregistrée : l\'élève ne s\'est pas encore connecté.</p></section>'}`;
+  root.querySelector('[data-back]').addEventListener('click', () => navigate('#/prof'));
 }
 
 // ---------------------------------------------------------------------
@@ -1650,6 +1861,8 @@ async function renderDiagnostic() {
         qcm++;
         if (st.choix.length < 2) problems.push(`${where} : moins de 2 choix`);
         if (typeof st.correct !== 'number' || st.correct < 0 || st.correct >= st.choix.length) problems.push(`${where} : index correct hors borne`);
+        const keys = st.choix.map((c) => String(c).replace(/\s+/g, ''));
+        if (new Set(keys).size !== keys.length) problems.push(`${where} : choix en double (${st.choix.join(' | ')})`);
       };
       for (const ex of (chap.exercices || [])) {
         for (let t = 0; t < 25; t++) {
@@ -1708,9 +1921,36 @@ function boot() {
   if (btn) btn.addEventListener('click', openSettings);
   refreshTopbar();
   router();
+  Sync.demarrer(); // récupère la version en ligne si l'élève est connecté
+}
+
+/** Après une fusion avec la version en ligne : redessine sans casser un exercice en cours. */
+function apresFusion() {
+  applySettings();
+  refreshTopbar();
+  const h = location.hash || '#/';
+  const pagePassive = h === '#/' || /^#\/(niveau|tableau|compte)/.test(h);
+  if (pagePassive) router();
 }
 
 Store.load();
+Sync = creerSynchro({
+  lireDonnees: () => Store.data,
+  ecrireDonnees: (d) => { Store.data = Store.normaliser(d); Store.saveLocal(); },
+  resume: (d) => resumePourTuteur(d),
+  // Classe venant du serveur (fixée par le tuteur) : appliquée si plus récente que le choix local.
+  appliquerEleve: (e) => {
+    const s = Store.data.settings;
+    if (e && e.niveau && (!s.niveau || (e.niveauAt || 0) > (s.niveauAt || 0))) {
+      const change = s.niveau !== e.niveau;
+      s.niveau = e.niveau; s.niveauAt = e.niveauAt || Date.now();
+      Store.saveLocal();
+      if (change) apresFusion();
+    }
+  },
+  onChange: apresFusion,
+  onStatut: () => refreshCompteBtn(),
+});
 window.addEventListener('hashchange', router);
 if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', boot);
 else boot();

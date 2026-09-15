@@ -28,7 +28,6 @@
   --t-geometrie:#8a6fb0;
   --t-donnees:  #c0894a;
   --t-algo:     #b06f8a;
-  --t-rappels:  #3e9b91;
 
   /* Accent courant (par défaut : vert) */
   --accent:      var(--t-nombres);
@@ -45,7 +44,6 @@
 [data-theme="geometrie"]       { --accent: var(--t-geometrie); --accent-soft:#efe9f6; --accent-ink:#412f5b; }
 [data-theme="donnees"]         { --accent: var(--t-donnees);   --accent-soft:#f7efe2; --accent-ink:#5b431f; }
 [data-theme="algo"]            { --accent: var(--t-algo);      --accent-soft:#f6e9ef; --accent-ink:#5b2f43; }
-[data-theme="rappels"]         { --accent: var(--t-rappels);   --accent-soft:#e2f1ef; --accent-ink:#1f4b45; }
 
 * { box-sizing: border-box; }
 
@@ -92,6 +90,17 @@ em { font-style: italic; color: inherit; }
 .xp-bar > span { display: block; height: 100%; background: var(--accent); transition: width 0.4s; }
 .xp-val { color: var(--muted); white-space: nowrap; }
 
+/* Téléphones : la barre doit tenir sur 320–480 px sans défilement horizontal. */
+@media (max-width: 480px) {
+  .topbar { gap: 0.4rem; padding-left: 0.6rem; padding-right: 0.6rem; }
+  .brand { font-size: 1rem; white-space: nowrap; }
+  .xp-mini { gap: 0.3rem; min-width: 0; }
+  .xp-bar, .xp-val { display: none; }
+}
+@media (max-width: 360px) {
+  .brand-txt { display: none; }
+}
+
 /* ------------------------------------------------------------- Layout */
 .app-main { max-width: var(--maxw); margin: 0 auto; padding: 1rem 1rem 3rem; }
 .app-footer { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 1.5rem 1rem 2rem; }
@@ -130,17 +139,89 @@ em { font-style: italic; color: inherit; }
 .btn-resume { margin-top: 0.4rem; width: 100%; }
 .btn-back { margin-bottom: 1rem; }
 
-/* ------------------------------------------------ Section prioritaire */
-.priority-section {
-  border: 2px solid var(--t-donnees);
-  background: linear-gradient(180deg, #fff8ec, var(--surface));
-  border-radius: var(--radius);
-  padding: 1.1rem;
-  margin-bottom: 2rem;
-  box-shadow: var(--shadow);
+[hidden] { display: none !important; }
+
+/* ------------------------------------------------- Connexion / compte */
+.welcome-login { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.9rem 1rem; margin: 0.8rem 0 1rem; }
+.welcome-login h2, .welcome-sep { font-size: 1.05rem; margin: 0 0 0.4rem; }
+.welcome-sep { margin-top: 1rem; color: var(--muted); }
+.login-form { display: grid; gap: 0.6rem; max-width: 360px; }
+.login-form label, .prof-form label { display: grid; gap: 0.25rem; font-weight: 600; font-size: 0.9rem; }
+.login-form input, .prof-form input, .prof-form select, .prof-select {
+  font: inherit; min-height: 44px; padding: 0.5rem 0.7rem; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--surface); color: var(--text);
 }
-.priority-head h2 { font-size: 1.2rem; color: #8a5e1f; }
-.priority-head p { color: var(--muted); font-size: 0.9rem; }
+.login-form .save-msg:empty { display: none; }
+/* Pastille d'état de la sauvegarde en ligne (bouton 👤 et page « Mon compte ») */
+.compte-btn { position: relative; }
+.compte-btn::after, .statut-point { content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--border); }
+.compte-btn::after { position: absolute; top: 5px; right: 5px; }
+.statut-point { display: inline-block; width: 12px; height: 12px; }
+.compte-btn.is-ok::after, .statut-point.is-ok { background: var(--ok); }
+.compte-btn.is-sync::after, .statut-point.is-sync { background: var(--t-fonctions); }
+.compte-btn.is-warn::after, .statut-point.is-warn { background: var(--warn); }
+.compte-btn.is-err::after, .statut-point.is-err { background: var(--err); }
+.compte-card { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; }
+.compte-avatar { font-size: 2.2rem; }
+.compte-statut { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600; }
+.modal-links { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+
+/* ------------------------------------------------------ Espace tuteur */
+.prof-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.6rem; align-items: end; }
+.prof-form > label { min-width: 0; }
+.prof-form input, .prof-form select { width: 100%; min-width: 0; }
+.code-row { display: flex; gap: 0.4rem; }
+.code-row input { flex: 1; min-width: 0; }
+.code-row .btn { flex: none; min-height: 44px; padding: 0 0.7rem; }
+.eleve-list { display: grid; gap: 0.7rem; }
+.eleve-card { border: 1px solid var(--border); border-left: 5px solid var(--accent); border-radius: var(--radius-sm); padding: 0.8rem 0.9rem; background: var(--surface); }
+.eleve-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+.eleve-head h3 { margin: 0; font-size: 1.1rem; }
+.eleve-stats { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.88rem; color: var(--muted); margin: 0.4rem 0; }
+.eleve-stats strong { color: var(--text); }
+.eleve-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.eleve-actions .btn { min-height: 38px; padding: 0.35rem 0.8rem; font-size: 0.88rem; }
+.code-affiche { font-family: ui-monospace, monospace; font-size: 1.05rem; letter-spacing: 0.15em; background: var(--surface-2); padding: 0.1rem 0.45rem; border-radius: 6px; }
+.activite-bars { display: flex; align-items: flex-end; gap: 3px; height: 70px; margin: 0.4rem 0 0.2rem; }
+.activite-bars span { flex: 1; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; }
+.activite-legende { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); }
+.age-ancien { color: var(--err); font-weight: 700; }
+
+/* ------------------------------------------- Onglets de niveau (5ᵉ/4ᵉ/3ᵉ) */
+.niv-tabs { display: flex; gap: 0.4rem; margin-bottom: 1rem; }
+.niv-tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 48px; padding: 0.35rem 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text); font-weight: 800; font-size: 1.15rem; text-decoration: none;
+}
+.niv-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: var(--shadow); }
+.niv-moi { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.85; }
+.niv-hint { margin-top: -0.4rem; }
+.niv-choice { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.6rem; margin-top: 0.6rem; }
+.cc-niv { background: var(--accent); color: #fff; font-size: 0.62rem; font-weight: 800; padding: 0.05rem 0.32rem; border-radius: 999px; line-height: 1.5; }
+
+/* --- Raccourcis de l'accueil (compacts, tiennent sur mobile) --- */
+.tool-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; margin-top: 0.8rem; }
+.tool {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15rem;
+  min-height: 64px; padding: 0.45rem 0.3rem; text-align: center; line-height: 1.15;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface);
+  color: var(--text); font-size: 0.78rem; font-weight: 600; text-decoration: none;
+}
+.tool:active { transform: scale(0.97); }
+.tool-ico { font-size: 1.3rem; }
+
+/* --- Choix version express / complète d'un chapitre --- */
+.mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-bottom: 1rem; }
+.mode-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 0.05rem; min-height: 48px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface);
+  color: var(--text); font: inherit; font-weight: 700; cursor: pointer;
+}
+.mode-btn small { font-weight: 500; font-size: 0.72rem; color: var(--muted); }
+.mode-btn.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); }
+.methode-bref { margin: 0; padding-left: 1.3rem; display: grid; gap: 0.3rem; }
+.dash-niveau { margin: 1rem 0 0.4rem; font-size: 1.05rem; }
 
 .section-title { font-size: 1.25rem; margin: 1.5rem 0 0.8rem; }
 
@@ -171,11 +252,9 @@ em { font-style: italic; color: inherit; }
   transition: transform 0.1s, box-shadow 0.15s, border-color 0.15s;
 }
 .chapter-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
-.chapter-card.is-priority { box-shadow: 0 0 0 2px var(--accent-soft) inset; }
 .chapter-card.is-soon { opacity: 0.62; }
 .cc-top { display: flex; align-items: center; justify-content: space-between; }
 .cc-ico { font-size: 1.7rem; }
-.cc-star { font-size: 0.95rem; }
 .cc-medal { font-size: 1.1rem; }
 .cc-num { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 .cc-title { font-weight: 700; font-size: 0.98rem; }
@@ -392,7 +471,8 @@ em { font-style: italic; color: inherit; }
    ===================================================================== */
 
 /* --- Boutons de la barre supérieure --- */
-.top-actions { display: flex; gap: 0.25rem; }
+.top-actions { display: flex; gap: 0.25rem; flex-shrink: 0; }
+@media (max-width: 480px) { .top-btn { width: 36px; height: 36px; font-size: 1rem; } }
 .top-btn { display: inline-grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-sm); font-size: 1.1rem; cursor: pointer; text-decoration: none; color: var(--text); }
 .top-btn:active { transform: scale(0.95); }
 .streak-mini { font-size: 0.82rem; font-weight: 700; color: var(--warn); }
@@ -407,9 +487,6 @@ em { font-style: italic; color: inherit; }
 .review-section { border: 2px solid var(--t-donnees); background: color-mix(in srgb, var(--t-donnees) 8%, var(--surface)); border-radius: var(--radius); padding: 1.1rem; margin-bottom: 1.5rem; }
 .review-section > h2 { font-size: 1.15rem; margin-bottom: 0.7rem; }
 
-/* --- Section "Rappels de 4ᵉ" --- */
-.rappels-section { border: 2px solid var(--t-rappels); background: color-mix(in srgb, var(--t-rappels) 7%, var(--surface)); border-radius: var(--radius); padding: 1.1rem 1.1rem 0.4rem; margin-bottom: 1.5rem; }
-.cc-4eme { background: var(--t-rappels); color: #fff; font-size: 0.62rem; font-weight: 800; padding: 0.05rem 0.32rem; border-radius: 999px; line-height: 1.5; }
 
 /* --- Bouton "à revoir" dans la page chapitre --- */
 .ch-actions { margin-left: auto; display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-end; }
@@ -418,7 +495,9 @@ em { font-style: italic; color: inherit; }
 /* --- Modale de réglages --- */
 .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; z-index: 200; padding: 1rem; }
 .modal.open { display: flex; }
-.modal-card { background: var(--surface); border-radius: var(--radius); padding: 1.2rem; width: 100%; max-width: 380px; box-shadow: var(--shadow-lg); }
+.modal-card { background: var(--surface); border-radius: var(--radius); padding: 1.2rem; width: 100%; max-width: 380px; max-height: calc(100dvh - 2rem); overflow-y: auto; box-shadow: var(--shadow-lg); }
+.setting-inline { display: flex; flex-wrap: wrap; gap: 0 1.2rem; }
+.setting-inline legend { width: 100%; }
 .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
 .modal-head h2 { font-size: 1.2rem; margin: 0; }
 .modal-close { background: var(--surface-2); border: 0; width: 34px; height: 34px; border-radius: 50%; font-size: 1rem; cursor: pointer; color: var(--text); }
@@ -450,7 +529,6 @@ em { font-style: italic; color: inherit; }
 
 /* --- Sauvegarde --- */
 .save-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.6rem 0; }
-.save-box { width: 100%; min-height: 80px; border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem; font-family: monospace; font-size: 0.8rem; background: var(--surface); color: var(--text); resize: vertical; }
 .save-msg { font-weight: 600; min-height: 1.2em; }
 .save-msg.is-ok { color: var(--ok); }
 .save-msg.is-err { color: var(--err); }
@@ -629,21 +707,9 @@ html[data-mode="dark"] img, html[data-mode="dark"] .svg-plot { filter: none; }
 .diag-list { margin: 0.8rem 0 0 1.1rem; color: var(--err); font-size: 0.9rem; }
 .dash-footlink { text-align: center; margin-top: 1.2rem; font-size: 0.85rem; }
 
-/* --- Transfert par QR --- */
-.save-qr { margin: 0.8rem 0; }
-.qr-card { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
-.qr-card svg { width: 220px; height: 220px; background: #fff; border-radius: var(--radius-sm); padding: 8px; }
-.qr-card .muted { text-align: center; max-width: 280px; }
 .save-advanced { margin: 0.5rem 0; }
 .save-advanced summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
-
-/* --- Sauvegarde en ligne (cloud) --- */
-.cloud-input { flex: 1 1 200px; min-width: 140px; min-height: 42px; padding: 0.4rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
-.cloud-code-row { display: flex; align-items: end; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
-.cloud-code-row label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; font-weight: 600; }
-.cloud-code { font-family: monospace; font-size: 1.2rem; letter-spacing: 0.15em; text-transform: uppercase; max-width: 180px; }
-.cloud-auto { display: flex; align-items: center; gap: 0.5rem; margin: 0.6rem 0; font-size: 0.9rem; }
-.cloud-config { background: var(--surface-2); border-radius: var(--radius-sm); padding: 0.7rem 0.9rem; margin-bottom: 0.6rem; }
+.login-nudge { margin: 0.6rem 0; padding: 0.5rem 0.7rem; background: var(--surface); border: 1px dashed var(--accent); border-radius: var(--radius-sm); font-size: 0.9rem; }
 
 @media print {
   .brevet-pb { border: 0; box-shadow: none; padding: 0; margin-bottom: 1.4rem; }

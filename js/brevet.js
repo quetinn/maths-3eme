@@ -77,10 +77,9 @@ const P_ABONNEMENT = {
         {
           enonce: `<p><strong>3.</strong> À partir de combien de séances la formule B devient-elle plus avantageuse ? (donne le nombre entier de séances)</p>`,
           points: 2, validation: 'nombre', reponse: Math.ceil(xEq + 1e-9),
-          accepte: Number.isInteger(xEq) ? [xEq + 1, xEq] : [],
           indice: `Cherche $x$ tel que $${pa}x = ${fixe} + ${pb}x$, puis arrondis au bon nombre entier de séances.`,
           corrige: `<p>On résout $${pa}x = ${fixe} + ${pb}x$ : $${pa - pb}x = ${fixe}$, donc $x = \\dfrac{${fixe}}{${pa - pb}} = ${round2(xEq)}$.</p>
-            <p>Comme le nombre de séances est entier, la formule B devient plus avantageuse à partir de <strong>${Math.ceil(xEq + 1e-9)} séances</strong>.</p>`,
+            <p>${Number.isInteger(xEq) ? `Pour ${xEq} séances, les deux formules coûtent autant ; B est donc strictement plus avantageuse` : 'Comme le nombre de séances est entier, la formule B devient plus avantageuse'} à partir de <strong>${Math.ceil(xEq + 1e-9)} séances</strong>.</p>`,
         },
       ],
     };
@@ -100,7 +99,7 @@ const P_THALES = {
     const ombreArbre = round2(ombreBaton * k);     // ombre de l'arbre (m)
     const hArbre = round2(baton * k);              // hauteur cherchée (m)
     return {
-      contexte: `<p>Pour mesurer la hauteur d'un arbre, Marion plante verticalement un piquet
+      contexte: `<p>Pour mesurer la hauteur d'un arbre, Sam plante verticalement un piquet
         de <strong>${baton} m</strong>. Au même moment, le piquet projette une ombre de
         <strong>${ombreBaton} m</strong> et l'arbre une ombre de <strong>${ombreArbre} m</strong>.</p>
         <p>Les rayons du soleil sont parallèles : les deux triangles (piquet + ombre) et
@@ -145,14 +144,15 @@ const P_THALES = {
 // ---------------------------------------------------------------------
 const P_PYTHAGORE = {
   id: 'br_pythagore', titre: "L'échelle contre le mur", domaine: 'Géométrie',
-  chapitres: ['r01', 'c11'], dureeMin: 10,
+  chapitres: ['r01'], dureeMin: 10,
   generer() {
-    // triplet pythagoricien mis à l'échelle
-    const base = pick([[3, 4, 5], [6, 8, 10], [5, 12, 13], [8, 15, 17]]);
-    const f = pick([0.5, 1]);
-    const pied = round2(base[0] * f);     // distance au mur
-    const haut = round2(base[1] * f);     // hauteur atteinte
-    const ech = round2(base[2] * f);      // longueur échelle (hypoténuse)
+    // Triplets pythagoriciens mis à une échelle réaliste [pied, hauteur, échelle, facteur].
+    // Choisis pour que la question « stable ? » donne tantôt oui, tantôt non.
+    const [p0, h0, e0, f] = pick([[3, 4, 5, 1], [5, 12, 13, 0.5], [8, 15, 17, 0.5], [7, 24, 25, 0.2], [12, 35, 37, 0.1], [9, 40, 41, 0.1]]);
+    const pied = round2(p0 * f);          // distance au mur
+    const haut = round2(h0 * f);          // hauteur atteinte
+    const ech = round2(e0 * f);           // longueur échelle (hypoténuse)
+    const stable = pied >= ech / 4 - 1e-9 && pied <= ech / 3 + 1e-9;
     return {
       contexte: `<p>Une échelle de <strong>${ech} m</strong> est appuyée contre un mur vertical.
         Le pied de l'échelle est posé à <strong>${pied} m</strong> du mur.</p>
@@ -178,12 +178,13 @@ const P_PYTHAGORE = {
             <p>Donc $h = \\sqrt{${round2(ech * ech - pied * pied)}} = ${haut}$ m.</p>`,
         },
         {
-          enonce: `<p><strong>2.</strong> Pour être stable, le pied doit être à au moins le quart de la longueur de l'échelle.
-            Ici, $${pied} \\geq \\dfrac{${ech}}{4}$ ? Réponds par <em>oui</em> ou <em>non</em>.</p>`,
-          points: 1, validation: 'texte', reponse: pied >= ech / 4 ? 'oui' : 'non', accepte: pied >= ech / 4 ? ['Oui'] : ['Non'],
-          indice: `Calcule $\\dfrac{${ech}}{4}$ et compare à ${pied}.`,
-          corrige: `<p>$\\dfrac{${ech}}{4} = ${round2(ech / 4)}$. Comme $${pied} ${pied >= ech / 4 ? '\\geq' : '<'} ${round2(ech / 4)}$,
-            l'échelle est <strong>${pied >= ech / 4 ? 'bien' : 'mal'} placée</strong> : réponse <strong>${pied >= ech / 4 ? 'oui' : 'non'}</strong>.</p>`,
+          enonce: `<p><strong>2.</strong> Pour être sûre, une échelle doit avoir son pied à une distance du mur comprise
+            entre le <strong>quart</strong> et le <strong>tiers</strong> de sa longueur. Est-ce le cas ici ? Réponds par <em>oui</em> ou <em>non</em>.</p>`,
+          points: 1, validation: 'texte', reponse: stable ? 'oui' : 'non',
+          indice: `Calcule $\\dfrac{${ech}}{4}$ et $\\dfrac{${ech}}{3}$, puis regarde si ${pied} est entre les deux.`,
+          corrige: `<p>$\\dfrac{${ech}}{4} \\approx ${round2(ech / 4)}$ et $\\dfrac{${ech}}{3} \\approx ${round2(ech / 3)}$.
+            Le pied est à $${pied}$ m : ${stable ? 'il est bien entre les deux' : (pied < ech / 4 ? 'c\'est trop près du mur' : 'c\'est trop loin du mur')}.
+            Réponse : <strong>${stable ? 'oui' : 'non'}</strong>.</p>`,
         },
       ],
     };
@@ -228,7 +229,7 @@ const P_RAMPE = {
         },
         {
           enonce: `<p><strong>2.</strong> Calcule la mesure de l'angle $\\alpha$, arrondie au degré.</p>`,
-          points: 2, validation: 'nombre', reponse: Math.round(angle), unite: '°', tolerance: 1.2,
+          points: 2, validation: 'nombre', reponse: Math.round(angle), unite: '°', tolerance: 0.5,
           indice: `Utilise $\\alpha = \\sin^{-1}\\!\\left(\\dfrac{${hauteur}}{${longueur}}\\right)$ (touche $\\sin^{-1}$ de la calculatrice).`,
           corrige: `<p>$\\sin(\\alpha) = \\dfrac{${hauteur}}{${longueur}} = ${round2(sinA)}$, donc
             $\\alpha = \\sin^{-1}(${round2(sinA)}) \\approx ${Math.round(angle)}°$.</p>`,
@@ -255,7 +256,7 @@ const P_STATS = {
     // 9 notes (effectif impair → médiane = valeur centrale)
     const notes = Array.from({ length: 9 }, () => randInt(6, 18)).sort((a, b) => a - b);
     const somme = notes.reduce((a, b) => a + b, 0);
-    const moyenne = round2(somme / notes.length);
+    const moyenne = Math.round((somme / notes.length) * 10) / 10; // arrondie au dixième
     const mediane = notes[4];
     const etendue = notes[8] - notes[0];
     return {
@@ -264,7 +265,7 @@ const P_STATS = {
       questions: [
         {
           enonce: `<p><strong>1.</strong> Calcule la note moyenne de ce groupe (arrondie au dixième).</p>`,
-          points: 2, validation: 'nombre', reponse: moyenne, tolerance: 0.06,
+          points: 2, validation: 'nombre', reponse: somme / notes.length, tolerance: 0.05,
           indice: `Additionne les ${notes.length} notes puis divise par ${notes.length}.`,
           corrige: `<p>Moyenne $= \\dfrac{${notes.join(' + ')}}{${notes.length}} = \\dfrac{${somme}}{${notes.length}} \\approx ${moyenne}$.</p>`,
         },
@@ -316,7 +317,7 @@ const P_PROBA = {
         },
         {
           enonce: `<p><strong>3.</strong> Quelle est la probabilité de <em>ne pas</em> tirer une bille bleue ? (forme décimale, arrondie au centième)</p>`,
-          points: 2, validation: 'nombre', reponse: round2((rouges + vertes) / total), tolerance: 0.02,
+          points: 2, validation: 'nombre', reponse: (rouges + vertes) / total, tolerance: 0.006,
           indice: `« Pas bleue » = rouge ou verte. Ou bien $1 - P(\\text{bleue})$.`,
           corrige: `<p>$P(\\text{pas bleue}) = \\dfrac{${rouges + vertes}}{${total}} \\approx ${round2((rouges + vertes) / total)}$
             (on peut aussi faire $1 - \\dfrac{${bleues}}{${total}}$).</p>`,
@@ -396,7 +397,7 @@ const P_PROGRAMME = {
         },
         {
           enonce: `<p><strong>2.</strong> On note $x$ le nombre choisi. Exprime le résultat du programme en fonction de $x$ (forme développée).</p>`,
-          points: 2, validation: 'expression', reponse: `${a}*x + ${a * b}`, accepte: [`${a}*(x+${b})`],
+          points: 2, validation: 'expression', reponse: `${a}*x + ${a * b}`,
           placeholder: `ex : ${a}x + ${a * b}`,
           indice: `On calcule $${a}(x + ${b})$, puis on développe.`,
           corrige: `<p>$${a}\\,(x + ${b}) = ${a}x + ${a * b}$.</p>`,

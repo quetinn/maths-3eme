@@ -1,47 +1,53 @@
 // =====================================================================
 //  sw.js — Service Worker (hors-ligne + installation PWA)
-//  Stratégie : "stale-while-revalidate" — on sert depuis le cache
-//  immédiatement (rapide + hors-ligne), et on met à jour en arrière-plan.
-//  Bumper VERSION force le rafraîchissement de tous les fichiers.
+//  Stratégies :
+//   - fichiers du site (même origine) : « réseau d'abord » → un élève en
+//     ligne a toujours la dernière version (pas de mélange ancien app.js /
+//     nouveau chapitre) ; hors-ligne, on sert la copie en cache.
+//   - bibliothèques CDN (URL versionnées, immuables) : « cache d'abord ».
+//   - tout le reste (API de sauvegarde en ligne…) : NON intercepté, pour ne
+//     jamais servir une sauvegarde périmée depuis le cache.
+//  Bumper VERSION purge les anciens caches.
 // =====================================================================
 
-const VERSION = 'v9';
-const CACHE = 'maths3eme-' + VERSION;
+const VERSION = 'v12';
+const CACHE = 'maths-college-' + VERSION;
 
-// Coquille de l'application (chemins relatifs à l'emplacement du SW = racine)
+// Coquille de l'application (chemins relatifs à l'emplacement du SW = racine).
+// Pré-cache « au mieux » : un fichier manquant n'empêche plus l'installation.
 const CORE = [
   './', './index.html', './manifest.json',
   './css/style.css',
-  './js/app.js', './js/engine.js', './js/render.js', './js/aide_memoire.js', './js/brevet.js',
-  './js/chapters/c01_calcul_litteral.js',
-  './js/chapters/c02_identites_remarquables.js',
-  './js/chapters/c03_equations_1er_degre.js',
-  './js/chapters/c04_equations_produit.js',
-  './js/chapters/c05_arithmetique.js',
-  './js/chapters/c06_puissances_racines.js',
-  './js/chapters/c07_notion_de_fonction.js',
-  './js/chapters/c08_fonctions_lineaires_affines.js',
-  './js/chapters/c09_variations_lecture_graphique.js',
-  './js/chapters/c10_thales.js',
-  './js/chapters/c11_trigonometrie.js',
-  './js/chapters/c12_transformations_plan.js',
-  './js/chapters/c13_homothetie.js',
-  './js/chapters/c14_geometrie_espace.js',
-  './js/chapters/c15_statistiques.js',
-  './js/chapters/c16_probabilites.js',
-  './js/chapters/c17_algorithmique.js',
-  './js/chapters/r01_pythagore.js',
-  './js/chapters/r02_nombres_relatifs.js',
-  './js/chapters/r03_fractions.js',
-  './js/chapters/r04_proportionnalite.js',
-  './js/chapters/r05_cosinus.js',
-  './js/chapters/r06_calcul_litteral.js',
-  './js/chapters/r07_equations.js',
-  './js/chapters/r08_puissances.js',
-  './js/chapters/r09_statistiques.js',
-  './js/chapters/r10_probabilites.js',
-  './js/chapters/r11_transformations.js',
-  './js/chapters/r12_aires_volumes.js',
+  './js/app.js', './js/programme.js', './js/stats.js', './js/cloud.js', './js/fusion.js', './js/config.js', './js/engine.js', './js/render.js', './js/aide_memoire.js', './js/brevet.js',
+  './js/chapters/3e/c01_calcul_litteral.js',
+  './js/chapters/3e/c02_identites_remarquables.js',
+  './js/chapters/3e/c03_equations_1er_degre.js',
+  './js/chapters/3e/c04_equations_produit.js',
+  './js/chapters/3e/c05_arithmetique.js',
+  './js/chapters/3e/c06_puissances_racines.js',
+  './js/chapters/3e/c07_notion_de_fonction.js',
+  './js/chapters/3e/c08_fonctions_lineaires_affines.js',
+  './js/chapters/3e/c09_variations_lecture_graphique.js',
+  './js/chapters/3e/c10_thales.js',
+  './js/chapters/3e/c11_trigonometrie.js',
+  './js/chapters/3e/c12_transformations_plan.js',
+  './js/chapters/3e/c13_homothetie.js',
+  './js/chapters/3e/c14_geometrie_espace.js',
+  './js/chapters/3e/c15_statistiques.js',
+  './js/chapters/3e/c16_probabilites.js',
+  './js/chapters/3e/c17_algorithmique.js',
+  './js/chapters/4e/r01_pythagore.js',
+  './js/chapters/4e/r02_nombres_relatifs.js',
+  './js/chapters/4e/r03_fractions.js',
+  './js/chapters/4e/r04_proportionnalite.js',
+  './js/chapters/4e/r05_cosinus.js',
+  './js/chapters/4e/r06_calcul_litteral.js',
+  './js/chapters/4e/r07_equations.js',
+  './js/chapters/4e/r08_puissances.js',
+  './js/chapters/4e/r09_statistiques.js',
+  './js/chapters/4e/r10_probabilites.js',
+  './js/chapters/4e/r11_transformations.js',
+  './js/chapters/4e/r12_aires_volumes.js',
   './icons/icon-192.png', './icons/icon-512.png',
 ];
 
@@ -58,8 +64,7 @@ const CDN = [
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    await cache.addAll(CORE);                              // indispensable
-    await Promise.allSettled(CDN.map((u) => cache.add(u))); // au mieux
+    await Promise.allSettled([...CORE, ...CDN].map((u) => cache.add(u)));
     self.skipWaiting();
   })());
 });
@@ -75,14 +80,33 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
-  e.respondWith((async () => {
-    const cached = await caches.match(req);
-    const network = fetch(req).then((res) => {
-      if (res && res.status === 200 && (res.type === 'basic' || res.type === 'cors')) {
-        caches.open(CACHE).then((c) => c.put(req, res.clone()));
-      }
+  const url = new URL(req.url);
+  const sameOrigin = url.origin === self.location.origin;
+  const isCdn = url.hostname === 'cdn.jsdelivr.net';
+  if (!sameOrigin && !isCdn) return; // API de sauvegarde, etc. : laissé au réseau
+
+  if (isCdn) {
+    e.respondWith((async () => {
+      const cached = await caches.match(req);
+      if (cached) return cached;
+      const res = await fetch(req);
+      if (res && res.ok) { const c = await caches.open(CACHE); c.put(req, res.clone()); }
       return res;
-    }).catch(() => null);
-    return cached || (await network) || (await caches.match('./index.html'));
+    })());
+    return;
+  }
+
+  // Même origine : réseau d'abord, cache en secours (hors-ligne).
+  e.respondWith((async () => {
+    try {
+      const res = await fetch(req);
+      if (res && res.ok && res.type === 'basic') { const c = await caches.open(CACHE); c.put(req, res.clone()); }
+      return res;
+    } catch (err) {
+      const cached = await caches.match(req, { ignoreSearch: true });
+      if (cached) return cached;
+      if (req.mode === 'navigate') return caches.match('./index.html');
+      throw err;
+    }
   })());
 });

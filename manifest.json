@@ -1,7 +1,7 @@
 {
-  "name": "Maths 3ᵉ — Plateforme interactive",
-  "short_name": "Maths 3ᵉ",
-  "description": "Cours, méthodes et exercices interactifs auto-corrigés de mathématiques pour la 3ème.",
+  "name": "Maths Collège — cours et exercices de la 5ᵉ à la 3ᵉ",
+  "short_name": "Maths Collège",
+  "description": "Cours, méthodes et exercices interactifs auto-corrigés de mathématiques pour le collège (5ᵉ, 4ᵉ, 3ᵉ).",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",

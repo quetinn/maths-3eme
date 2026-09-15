@@ -143,6 +143,51 @@ export function isPrime(n) {
   return true;
 }
 
+// Unités tolérées en fin de réponse numérique (« 12 cm² », « 45 € », « 30° »…).
+const UNITS_RE = /(€|euros?|°|%|km\/h|m\/s|[kcdm]?m\^?[23]?|[kcm]?g|[cdm]?l|h|min|s|ans?|s[ée]ances?|pts?|points?|billes?|personnes?|élèves?|eleves?)$/;
+
+/** Retire une unité finale d'une saisie normalisée (« 12cm^2 » → « 12 »). */
+function stripUnits(n) {
+  const t = n.replace(UNITS_RE, '');
+  return /\d$/.test(t) ? t : n; // on ne retire l'unité que si un nombre la précède
+}
+
+/**
+ * Vrai si la saisie (normalisée) est un RÉSULTAT et non un calcul :
+ * décimal, fraction a/b, ou écriture a×10^n. Empêche de « recopier »
+ * l'énoncé (« (-3)+(-5) », « 2/7+3/7 », « 2^3×2^4 »…) pour avoir juste.
+ */
+export function isResultForm(n) {
+  let t = n;
+  const wrapped = t.match(/^\((.*)\)$/); // « (-8) » toléré
+  if (wrapped) t = wrapped[1];
+  const num = '[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)';
+  return new RegExp(`^${num}$`).test(t)
+    || new RegExp(`^${num}/${num}$`).test(t)
+    || new RegExp(`^${num}\\*?10\\^\\(?[+-]?\\d+\\)?$`).test(t);
+}
+
+/**
+ * Vrai si la saisie est une expression en x RÉDUITE et sans parenthèses :
+ * au plus un terme par puissance de x (« 2x^2 - x + 3 », « x/2 + 1 »).
+ * Refuse « 3(2x+5) », « 5x + 2 + x + 5 », « x*x »… (énoncé recopié).
+ */
+export function isReducedForm(s) {
+  const t = normalize(s).replace(/\*\*/g, '^').replace(/^\+/, '');
+  if (t === '' || /[()√]/.test(t)) return false;
+  const terms = t.match(/[+-]?[^+-]+/g);
+  if (!terms) return false;
+  const seen = new Set();
+  for (const term of terms) {
+    const m = term.match(/^[+-]?(\d+(?:\.\d+)?)?(?:\/(\d+(?:\.\d+)?))?\*?(x(?:\^(\d+))?)?(?:\/(\d+(?:\.\d+)?))?$/);
+    if (!m || (!m[1] && !m[3])) return false;
+    const deg = m[3] ? (m[4] ? +m[4] : 1) : 0;
+    if (seen.has(deg)) return false;
+    seen.add(deg);
+  }
+  return true;
+}
+
 /** Découpe une saisie en liste de nombres (séparateurs ; espace « ou »). */
 export function parseNumberList(s) {
   return String(s)
@@ -153,16 +198,8 @@ export function parseNumberList(s) {
     .trim()
     .split(/\s+/)
     .filter(Boolean)
-    .map(parseNumber)
+    .map((tok) => (isResultForm(normalize(tok)) ? parseNumber(tok) : NaN))
     .filter(Number.isFinite);
-}
-
-/** Compare deux ensembles de nombres sans tenir compte de l'ordre. */
-function sameNumberSet(a, b, tol = APPROX) {
-  if (a.length !== b.length) return false;
-  const aa = [...a].sort((x, y) => x - y);
-  const bb = [...b].sort((x, y) => x - y);
-  return aa.every((v, i) => nearly(v, bb[i], tol));
 }
 
 /**
@@ -207,7 +244,11 @@ export function isProductForm(s) {
  *      'solutions' (ensemble de nombres) | 'fraction_irreductible'
  *      'notation_scientifique' | 'facteurs_premiers'
  *    accepte    : formes alternatives acceptées (tableau)
- *    tolerance  : tolérance numérique (mode 'nombre', def. 1e-6)
+ *    tolerance  : écart ABSOLU toléré (mode 'nombre'/'solutions').
+ *                 Ex. réponse arrondie au dixième → 0.05 ; au degré → 0.5.
+ *    calcul     : (mode 'nombre') true = accepte aussi un calcul (« 3×4 »)
+ *    forme      : (mode 'expression') 'reduite' | 'libre'. Par défaut,
+ *                 'reduite' si la réponse attendue n'a pas de parenthèses.
  * @returns {boolean}
  */
 export function checkAnswer(userInput, data) {
@@ -215,6 +256,7 @@ export function checkAnswer(userInput, data) {
   if (raw === '') return false;
   const mode = data.validation || 'expression';
   const refNum = () => (typeof data.reponse === 'number' ? data.reponse : parseNumber(data.reponse));
+  const close = (u, r) => (data.tolerance != null ? Math.abs(u - r) <= data.tolerance + 1e-9 : nearly(u, r));
 
   if (mode === 'factorisation') {
     if (!isProductForm(raw)) return false;
@@ -222,18 +264,24 @@ export function checkAnswer(userInput, data) {
   }
 
   if (mode === 'nombre') {
-    const tol = data.tolerance || APPROX;
-    // tolère « x = 3 », « S = 5 » … en retirant l'affectation de variable
-    const cleaned = raw.replace(/^[a-zA-Z]\s*=\s*/, '');
+    // tolère « x = 3 », « S = 5 », « 12 cm² »… en retirant affectation et unité
+    const cleaned = stripUnits(normalize(raw.replace(/^[a-zA-Z]\s*=\s*/, '')));
+    if (!data.calcul && !isResultForm(cleaned)) return false;
     const u = parseNumber(cleaned);
-    const r = refNum();
-    if (Number.isFinite(u) && Number.isFinite(r) && nearly(u, r, tol)) return true;
-    return (data.accepte || []).some((a) => nearly(parseNumber(a), r, tol));
+    if (!Number.isFinite(u)) return false;
+    const refs = [refNum(), ...(data.accepte || []).map((a) => (typeof a === 'number' ? a : parseNumber(a)))];
+    // Résultat entier attendu : « 27/3 » est un calcul (division recopiée), pas un résultat.
+    const frac = !data.calcul && cleaned.replace(/^\(|\)$/g, '').match(/\/([+-]?[\d.]+)$/);
+    if (frac && Math.abs(parseFloat(frac[1])) !== 1 && refs.every((r) => Number.isInteger(r))) return false;
+    return refs.some((r) => Number.isFinite(r) && close(u, r));
   }
 
   if (mode === 'solutions') {
     const ref = Array.isArray(data.reponse) ? data.reponse.map(Number) : parseNumberList(data.reponse);
-    return sameNumberSet(parseNumberList(raw), ref, data.tolerance || APPROX);
+    const list = parseNumberList(raw);
+    if (list.length !== ref.length) return false;
+    const aa = [...list].sort((x, y) => x - y), bb = [...ref].sort((x, y) => x - y);
+    return aa.every((v, i) => close(v, bb[i]));
   }
 
   if (mode === 'fraction_irreductible') {
@@ -274,9 +322,37 @@ export function checkAnswer(userInput, data) {
     return (data.accepte || []).some((a) => normalize(a) === u);
   }
 
-  // mode 'expression' (défaut) — équivalence algébrique tolérante
+  // mode 'expression' (défaut) — équivalence algébrique tolérante.
+  // Si la réponse attendue est une forme développée/réduite (sans parenthèses),
+  // la saisie doit l'être aussi : recopier « (x+3)(x+4) » ne suffit pas.
+  const forme = data.forme || (/[()]/.test(String(data.reponse)) ? 'libre' : 'reduite');
+  if (forme === 'reduite' && !isReducedForm(raw)) return false;
   if (exprEqual(raw, data.reponse)) return true;
   return (data.accepte || []).some((a) => exprEqual(raw, a));
+}
+
+/**
+ * Prépare les choix d'un QCM : supprime les doublons (en gardant la bonne
+ * réponse) puis mélange l'ordre, en recalculant l'index `correct`.
+ * Sans ça, la bonne réponse était en 1re position 2 fois sur 3.
+ * `ordre_fixe: true` conserve l'ordre d'origine (échelles, etc.).
+ * Renvoie une COPIE de l'état (les questions statiques ne sont pas modifiées).
+ */
+export function prepareChoices(state) {
+  if (!state || !Array.isArray(state.choix)) return state;
+  const key = (c) => String(c).replace(/\s+/g, '');
+  const good = state.choix[state.correct];
+  const items = [];
+  state.choix.forEach((c, i) => {
+    const dup = items.find((it) => key(it.c) === key(c));
+    if (!dup) items.push({ c, ok: i === state.correct });
+    else if (i === state.correct) dup.ok = true;
+  });
+  if (!state.ordre_fixe) {
+    for (let i = items.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [items[i], items[j]] = [items[j], items[i]]; }
+  }
+  const correct = items.findIndex((it) => it.ok);
+  return Object.assign({}, state, { choix: items.map((it) => it.c), correct: correct >= 0 ? correct : items.findIndex((it) => it.c === good) });
 }
 
 // ---------------------------------------------------------------------
@@ -437,7 +513,7 @@ export function mountExercise(container, exercice, hooks = {}) {
   }
 
   function render() {
-    state = exercice.generer();
+    state = prepareChoices(exercice.generer());
     hintsShown = 0; attempts = 0; solved = false; correctionStep = 0; lastInput = null;
     order = null;
 
@@ -630,6 +706,7 @@ export function mountQuiz(container, questions, hooks = {}, opts = {}) {
   const total = questions.length;
   const answered = new Array(total).fill(false);
   const mode = opts.mode || 'chapitre'; // 'chapitre' | 'examen'
+  let dejaValide = !!opts.dejaValide;   // chapitre déjà validé → plus d'XP (évite de « farmer »)
 
   const wrap = document.createElement('div');
   wrap.className = 'quiz';
@@ -638,7 +715,7 @@ export function mountQuiz(container, questions, hooks = {}, opts = {}) {
   function renderQuestion() {
     // Question génératale : si elle fournit generer(), on tire des valeurs.
     const base = questions[idx];
-    const q = typeof base.generer === 'function' ? Object.assign({}, base, base.generer()) : base;
+    const q = prepareChoices(typeof base.generer === 'function' ? Object.assign({}, base, base.generer()) : base);
     const isVF = q.type === 'vrai_faux';
     const isQcm = q.type === 'qcm';
 
@@ -711,25 +788,30 @@ export function mountQuiz(container, questions, hooks = {}, opts = {}) {
   function renderResult() {
     const pct = Math.round((score / total) * 100);
     const passed = pct >= 80;
-    const xp = score * 10 + (passed ? 50 : 0);
+    // Examen : XP à chaque passage. Chapitre : XP uniquement à la 1re validation
+    // (avant, l'XP affichée en cas d'échec n'était jamais créditée).
+    const xp = mode === 'examen' ? score * 10 + (passed ? 50 : 0) : (passed && !dejaValide ? score * 10 + 50 : 0);
     let msg;
     if (mode === 'examen') {
       msg = pct >= 80 ? '🎉 Excellent ! Tu es prêt·e.' : pct >= 50 ? '👍 Pas mal — continue à t\'entraîner.' : '💪 Courage, retravaille les chapitres concernés.';
+    } else if (passed) {
+      msg = dejaValide ? '✅ Toujours validé — bel entraînement !' : '🏅 Chapitre validé ! Badge débloqué.';
     } else {
-      msg = passed ? '🏅 Chapitre validé ! Badge débloqué.' : 'Presque ! Atteins 80 % pour décrocher le badge. Réessaie quand tu veux.';
+      msg = 'Presque ! Atteins 80 % pour décrocher le badge. Réessaie quand tu veux.';
     }
     wrap.innerHTML = `
       <div class="quiz-result ${passed ? 'pass' : 'fail'}">
         <div class="quiz-score">${score} / ${total}</div>
         <p>${msg}</p>
-        <p class="quiz-xp">+${xp} XP</p>
+        ${xp ? `<p class="quiz-xp">+${xp} XP</p>` : ''}
         <button class="btn btn-ghost" data-act="retry">🔄 ${mode === 'examen' ? 'Refaire un examen' : 'Refaire le quiz'}</button>
       </div>`;
     wrap.querySelector('[data-act="retry"]').addEventListener('click', () => {
       idx = 0; score = 0; answered.fill(false); renderQuestion();
     });
     if (typeof hooks.onComplete === 'function') hooks.onComplete(score, total);
-    if (passed && typeof hooks.onPass === 'function') hooks.onPass(xp);
+    if (passed && typeof hooks.onPass === 'function') hooks.onPass(xp, { premiere: !dejaValide });
+    if (passed) dejaValide = true;
   }
 
   renderQuestion();
