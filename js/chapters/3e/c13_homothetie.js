@@ -42,37 +42,63 @@ export default {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Calcule la nouvelle longueur :',
       generer() {
         const L = randInt(3, 12), k = randInt(2, 5);
-        return { enonce: `Une longueur de $${L}$ cm est agrandie de rapport $k = ${k}$. Nouvelle longueur ?`, reponse: L * k, validation: 'nombre' };
+        return { enonce: `Une longueur de $${L}$ cm est agrandie de rapport $k = ${k}$. Nouvelle longueur ?`, reponse: L * k, validation: 'nombre', _v: { L, k } };
       },
       indices: ['Les longueurs sont multipliées par $k$.', `Multiplie la longueur par le rapport.`, "Nouvelle longueur $= k \\times L$."],
-      correction_detaillee: () => `<p>Une longueur est simplement multipliée par $k$.</p>`,
+      correction_etapes(st) {
+        const { L, k } = st._v;
+        return [
+          `Dans un agrandissement de rapport $k$, toutes les <strong>longueurs</strong> sont multipliées par $k$.`,
+          `Nouvelle longueur $= ${k} \\times ${L} = ${k * L}$ cm.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'qcm', consigne: 'Choisis le bon facteur :',
       generer() {
         const k = randInt(3, 5); // k = 2 donnait k² = 2k : deux choix « 4 »
-        return { enonce: `Dans un agrandissement de rapport $${k}$, l'aire est multipliée par :`, choix: [`${k}`, `${k * k}`, `${k * k * k}`, `${2 * k}`], correct: 1 };
+        return { enonce: `Dans un agrandissement de rapport $${k}$, l'aire est multipliée par :`, choix: [`${k}`, `${k * k}`, `${k * k * k}`, `${2 * k}`], correct: 1, _v: { k } };
       },
       indices: ['Les aires ne suivent pas le même facteur que les longueurs.', "L'aire est multipliée par $k^2$.", `Calcule $k^2$.`],
-      correction_detaillee: () => `<p>Les aires sont multipliées par $k^2$.</p>`,
+      correction_etapes(st) {
+        const { k } = st._v;
+        return [
+          `Une aire se calcule à partir de <strong>deux</strong> longueurs : chacune est multipliée par $${k}$.`,
+          `L'aire est donc multipliée par $${k} \\times ${k} = ${k * k}$ (c'est $k^2$).`,
+          `(Les volumes, eux, seraient multipliés par $k^3 = ${k * k * k}$.)`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Calcule la nouvelle aire :',
       generer() {
         const A = randInt(4, 20), k = randInt(2, 4);
-        return { enonce: `Une figure d'aire $${A}$ cm² est agrandie de rapport $k = ${k}$. Nouvelle aire ?`, reponse: A * k * k, validation: 'nombre' };
+        return { enonce: `Une figure d'aire $${A}$ cm² est agrandie de rapport $k = ${k}$. Nouvelle aire ?`, reponse: A * k * k, validation: 'nombre', _v: { A, k } };
       },
       indices: ["L'aire est multipliée par $k^2$.", `Calcule d'abord $k^2$.`, "Nouvelle aire $= k^2 \\times A$."],
-      correction_detaillee: () => `<p>Nouvelle aire $= k^2 \\times A$.</p>`,
+      correction_etapes(st) {
+        const { A, k } = st._v;
+        return [
+          `Les aires sont multipliées par $k^2$ : ici $k^2 = ${k}^2 = ${k * k}$.`,
+          `Nouvelle aire $= ${k * k} \\times ${A} = ${A * k * k}$ cm².`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'saisie', consigne: 'Calcule le nouveau volume :',
       generer() {
         const V = randInt(3, 15), k = randInt(2, 3);
-        return { enonce: `Un solide de volume $${V}$ cm³ est agrandi de rapport $k = ${k}$. Nouveau volume ?`, reponse: V * k * k * k, validation: 'nombre' };
+        return { enonce: `Un solide de volume $${V}$ cm³ est agrandi de rapport $k = ${k}$. Nouveau volume ?`, reponse: V * k * k * k, validation: 'nombre', _v: { V, k } };
       },
       indices: ['Les volumes sont multipliés par $k^3$.', `Calcule $k^3$.`, "Nouveau volume $= k^3 \\times V$."],
-      correction_detaillee: () => `<p>Nouveau volume $= k^3 \\times V$.</p>`,
+      correction_etapes(st) {
+        const { V, k } = st._v;
+        return [
+          `Un volume fait intervenir <strong>trois</strong> longueurs : il est multiplié par $k^3$.`,
+          `$k^3 = ${k}^3 = ${k * k * k}$.`,
+          `Nouveau volume $= ${k * k * k} \\times ${V} = ${V * k * k * k}$ cm³.`,
+        ];
+      },
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Retrouve le rapport k :',
@@ -144,7 +170,7 @@ export default {
         };
       },
       indices: ['On repère d\'abord la grandeur (longueur, aire ou volume).', 'L\'exposant dépend de cette grandeur.', 'On multiplie en dernier.'],
-      correction_detaillee: () => `<p>Ordre : identifier la grandeur → choisir $k^3$ → calculer $k^3$ → multiplier.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : identifier la grandeur → choisir $k^3$ → calculer $k^3$ → multiplier.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

@@ -66,9 +66,15 @@ export default {
   exercices: [
     {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Translation — donne l\'ABSCISSE de l\'image :',
-      generer() { const x = randIntNonZero(-5, 5), y = randIntNonZero(-5, 5), a = randIntNonZero(-4, 4), b = randIntNonZero(-4, 4); return { enonce: `$M(${x}\\,;${y})$ translaté du vecteur $(${a}\\,;${b})$. Abscisse de $M'$ ?`, reponse: x + a, validation: 'nombre' }; },
+      generer() { const x = randIntNonZero(-5, 5), y = randIntNonZero(-5, 5), a = randIntNonZero(-4, 4), b = randIntNonZero(-4, 4); return { enonce: `$M(${x}\\,;${y})$ translaté du vecteur $(${a}\\,;${b})$. Abscisse de $M'$ ?`, reponse: x + a, validation: 'nombre', _v: { x, y, a, b } }; },
       indices: ['On ajoute le vecteur aux coordonnées.', "L'abscisse de $M'$ est $x + a$.", 'Attention aux signes.'],
-      correction_detaillee: () => `<p>$M'(x+a\\,;y+b)$ : l'abscisse est $x+a$.</p>`,
+      correction_etapes(st) {
+        const { x, a } = st._v, p = (n) => (n < 0 ? `(${n})` : n);
+        return [
+          `La translation ajoute la 1ʳᵉ coordonnée du vecteur à l'abscisse : $x' = x + a$.`,
+          `$x' = ${x} + ${p(a)} = ${x + a}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'complete', consigne: 'Complète les coordonnées de l\'image (translation) :',
@@ -78,15 +84,21 @@ export default {
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Symétrie centrale (origine) — donne l\'ORDONNÉE de l\'image :',
-      generer() { const x = randIntNonZero(-6, 6), y = randIntNonZero(-6, 6); return { enonce: `$M(${x}\\,;${y})$. Ordonnée de son symétrique par rapport à $O$ ?`, reponse: -y, validation: 'nombre' }; },
+      generer() { const x = randIntNonZero(-6, 6), y = randIntNonZero(-6, 6); return { enonce: `$M(${x}\\,;${y})$. Ordonnée de son symétrique par rapport à $O$ ?`, reponse: -y, validation: 'nombre', _v: { x, y } }; },
       indices: ['La symétrie centrale change les deux signes.', "$M'(-x\\,;-y)$.", "L'ordonnée devient $-y$."],
-      correction_detaillee: () => `<p>Par symétrie de centre $O$ : $M'(-x\\,;-y)$.</p>`,
+      correction_etapes(st) {
+        const { x, y } = st._v;
+        return [
+          `$O$ doit être le milieu de $[MM']$ : on change le signe des deux coordonnées, $M'(-x\\,;\\,-y)$.`,
+          `Ici $M(${x}\\,;\\,${y})$ donne $M'(${-x}\\,;\\,${-y})$ : l'ordonnée cherchée est $${-y}$.`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'ordonner_etapes', consigne: 'Remets dans l\'ordre l\'application d\'une translation :',
       generer() { const x = randIntNonZero(-4, 4), y = randIntNonZero(-4, 4), a = randIntNonZero(-4, 4), b = randIntNonZero(-4, 4); return { etapes: [`Identifier la transformation : translation de vecteur $(${a}\\,;${b})$`, `Appliquer la règle : on ajoute le vecteur aux coordonnées`, `Calculer l'abscisse : $${x} + (${a}) = ${x + a}$`, `Calculer l'ordonnée : $${y} + (${b}) = ${y + b}$`] }; },
       indices: ['On identifie d\'abord la transformation.', 'On applique la règle avant de calculer.', 'On traite les deux coordonnées.'],
-      correction_detaillee: () => `<p>Ordre : identifier → appliquer la règle → abscisse → ordonnée.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : identifier → appliquer la règle → abscisse → ordonnée.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Symétrie axiale (axe des abscisses) — donne l\'ORDONNÉE :',
@@ -96,9 +108,15 @@ export default {
     },
     {
       id: 'e06', niveau: 3, type: 'qcm', consigne: 'Quelle transformation ?',
-      generer() { const cas = [{ e: 'fait glisser la figure sans la tourner', good: 'translation' }, { e: "fait faire un demi-tour autour d'un point", good: 'symétrie centrale' }, { e: 'agit comme un pliage le long d\'une droite', good: 'symétrie axiale' }]; const c = pick(cas); const choix = ['translation', 'symétrie centrale', 'symétrie axiale']; return { enonce: `La transformation qui ${c.e} est :`, choix, correct: choix.indexOf(c.good) }; },
+      generer() { const cas = [{ e: 'fait glisser la figure sans la tourner', good: 'translation' }, { e: "fait faire un demi-tour autour d'un point", good: 'symétrie centrale' }, { e: 'agit comme un pliage le long d\'une droite', good: 'symétrie axiale' }]; const c = pick(cas); const choix = ['translation', 'symétrie centrale', 'symétrie axiale']; return { enonce: `La transformation qui ${c.e} est :`, choix, correct: choix.indexOf(c.good), ordre_fixe: true, _v: { e: c.e, good: c.good } }; },
       indices: ['Translation = glissement.', 'Symétrie centrale = demi-tour.', 'Symétrie axiale = pliage.'],
-      correction_detaillee: () => `<p>Glissement → translation ; demi-tour → symétrie centrale ; pliage → symétrie axiale.</p>`,
+      correction_etapes(st) {
+        const { e, good } = st._v;
+        const why = good === 'translation' ? 'Une translation fait glisser la figure : chaque point se déplace de la même façon (même direction, même longueur).'
+          : good === 'symétrie centrale' ? "Une symétrie centrale correspond à un demi-tour autour du centre : c'est la rotation d'angle $180°$."
+            : "Une symétrie axiale correspond à un pliage le long de l'axe : la figure est « retournée » de l'autre côté.";
+        return [`La transformation qui ${e}, c'est la <strong>${good}</strong>.`, why];
+      },
     },
   ],
 

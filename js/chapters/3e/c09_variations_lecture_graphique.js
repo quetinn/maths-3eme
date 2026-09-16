@@ -38,10 +38,17 @@ export default {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Complète le tableau de valeurs :',
       generer() {
         const a = randIntNonZero(-3, 3), b = randInt(-4, 4), x0 = randInt(-4, 4);
-        return { enonce: `Pour $f(x) = ${a === 1 ? 'x' : a === -1 ? '-x' : a + 'x'}${b > 0 ? ' + ' + b : b < 0 ? ' - ' + -b : ''}$, quelle est la valeur de $f(${x0})$ ?`, reponse: a * x0 + b, validation: 'nombre' };
+        return { enonce: `Pour $f(x) = ${a === 1 ? 'x' : a === -1 ? '-x' : a + 'x'}${b > 0 ? ' + ' + b : b < 0 ? ' - ' + -b : ''}$, quelle est la valeur de $f(${x0})$ ?`, reponse: a * x0 + b, validation: 'nombre', _v: { a, b, x0 } };
       },
       indices: ['Remplace $x$ par la valeur de la colonne.', 'Calcule soigneusement.', 'Attention aux signes.'],
-      correction_detaillee: () => `<p>On remplace $x$ par la valeur demandée dans l'expression de $f$.</p>`,
+      correction_etapes(st) {
+        const { a, b, x0 } = st._v, p = (n) => (n < 0 ? `(${n})` : n), suite = b > 0 ? ` + ${b}` : b < 0 ? ` - ${-b}` : '';
+        return [
+          `On remplace $x$ par $${x0}$ : $f(${x0}) = ${a} \\times ${p(x0)}${suite}$.`,
+          `$${a} \\times ${p(x0)} = ${a * x0}$${suite ? `, puis $${a * x0}${suite} = ${a * x0 + b}$` : ''}.`,
+          `$f(${x0}) = ${a * x0 + b}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'qcm', consigne: 'Lis le sens de variation :',
@@ -50,12 +57,18 @@ export default {
         return {
           enonce: `La fonction représentée est :`,
           choix: ['croissante', 'décroissante'],
-          correct: a > 0 ? 0 : 1,
+          correct: a > 0 ? 0 : 1, ordre_fixe: true, _v: { a },
           visuel: (c) => plotFunction(c, (x) => a * x + b, { xmin: -5, xmax: 5 }),
         };
       },
       indices: ['Suis la courbe de gauche à droite.', 'Si elle monte : croissante.', 'Si elle descend : décroissante.'],
-      correction_detaillee: () => `<p>Une droite qui monte (pente positive) est croissante ; qui descend (pente négative) est décroissante.</p>`,
+      correction_etapes(st) {
+        const { a } = st._v;
+        return [
+          `Le coefficient directeur de la droite est $a = ${a}$ : quand on avance de $1$, la droite ${a > 0 ? 'monte' : 'descend'} de $${Math.abs(a)}$.`,
+          `Une droite qui ${a > 0 ? 'monte de gauche à droite est <strong>croissante</strong> (pente positive)' : 'descend de gauche à droite est <strong>décroissante</strong> (pente négative)'}.`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Lis la valeur du minimum :',
@@ -63,12 +76,19 @@ export default {
         const h = randInt(-2, 2), k = randInt(-3, 3);
         return {
           enonce: `Quelle est la valeur minimale atteinte par cette fonction ?`,
-          reponse: k, validation: 'nombre',
+          reponse: k, validation: 'nombre', _v: { h, k },
           visuel: (c) => plotFunction(c, (x) => (x - h) * (x - h) + k, { xmin: h - 4, xmax: h + 4 }),
         };
       },
       indices: ['Cherche le point le plus bas de la courbe.', 'La valeur du minimum est son ordonnée.', 'Lis sur l\'axe vertical.'],
-      correction_detaillee: () => `<p>Le minimum est l'ordonnée du point le plus bas de la courbe.</p>`,
+      correction_etapes(st) {
+        const { h, k } = st._v;
+        return [
+          `Le point le plus bas de la courbe (son sommet) a pour abscisse $${h}$.`,
+          `On lit son ordonnée sur l'axe vertical : $${k}$.`,
+          `Le minimum de la fonction vaut donc $${k}$ (il est atteint pour $x = ${h}$).`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'saisie', consigne: 'Lis l\'abscisse du minimum :',
@@ -76,12 +96,19 @@ export default {
         const h = randInt(-2, 3), k = randInt(-3, 3);
         return {
           enonce: `En quelle valeur de $x$ cette fonction atteint-elle son minimum ?`,
-          reponse: h, validation: 'nombre',
+          reponse: h, validation: 'nombre', _v: { h, k },
           visuel: (c) => plotFunction(c, (x) => (x - h) * (x - h) + k, { xmin: h - 4, xmax: h + 4 }),
         };
       },
       indices: ['Le minimum est le point le plus bas.', 'Lis son abscisse (axe horizontal).', 'Descends du sommet jusqu\'à l\'axe des $x$.'],
-      correction_detaillee: () => `<p>On lit l'abscisse du point le plus bas.</p>`,
+      correction_etapes(st) {
+        const { h, k } = st._v;
+        return [
+          `On repère le point le plus bas de la courbe : son ordonnée vaut $${k}$.`,
+          `On descend de ce point jusqu'à l'axe horizontal : on lit $${h}$.`,
+          `Le minimum est atteint pour $x = ${h}$ (attention : la question porte sur l'abscisse, pas sur la valeur du minimum).`,
+        ];
+      },
     },
     {
       id: 'e05', niveau: 3, type: 'qcm', consigne: 'Compare sans calculer :',
@@ -91,11 +118,20 @@ export default {
         const choix = ['f(x_1) < f(x_2)', 'f(x_1) > f(x_2)', 'f(x_1) = f(x_2)'];
         return {
           enonce: `$f$ est ${croissante ? 'croissante' : 'décroissante'} et $x_1 = ${x1} < x_2 = ${x2}$. Que peut-on dire ?`,
-          choix, correct: choix.indexOf(good),
+          choix, correct: choix.indexOf(good), _v: { x1, x2, croissante, good },
         };
       },
       indices: ['Croissante : l\'ordre est conservé.', 'Décroissante : l\'ordre est inversé.', 'Compare les images selon le sens de variation.'],
-      correction_detaillee: () => `<p>Croissante conserve l'ordre ($x_1<x_2 \\Rightarrow f(x_1)<f(x_2)$) ; décroissante l'inverse.</p>`,
+      correction_etapes(st) {
+        const { x1, x2, croissante, good } = st._v;
+        return [
+          `On a $${x1} < ${x2}$ et la fonction est ${croissante ? 'croissante' : 'décroissante'}.`,
+          croissante
+            ? `Une fonction croissante <strong>conserve l'ordre</strong> : les images sont rangées dans le même ordre que les nombres.`
+            : `Une fonction décroissante <strong>inverse l'ordre</strong> : la plus petite valeur a la plus grande image.`,
+          `Donc $${good}$.`,
+        ];
+      },
     },
     {
       id: 'e06', niveau: 3, type: 'saisie', consigne: 'Lis l\'image sur la courbe :',
@@ -163,7 +199,7 @@ export default {
         };
       },
       indices: ['On cherche d\'abord le point le plus bas.', 'L\'abscisse dit OÙ, l\'ordonnée dit COMBIEN.', 'On conclut en réunissant les deux lectures.'],
-      correction_detaillee: () => `<p>Ordre : repérer le point le plus bas → lire l'abscisse → lire l'ordonnée → conclure.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : repérer le point le plus bas → lire l'abscisse → lire l'ordonnée → conclure.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

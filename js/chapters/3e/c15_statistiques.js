@@ -2,7 +2,7 @@
 //  c15_statistiques.js — Moyenne, médiane, étendue, diagrammes (Chart.js)
 // =====================================================================
 
-import { randInt, pick } from '../../engine.js';
+import { randInt } from '../../engine.js';
 import { mountChart, mountBoxPlot } from '../../render.js';
 
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -69,28 +69,49 @@ export default {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Calcule la moyenne :',
       generer() {
         const m = randInt(6, 14), data = shuffle([m - 2, m - 1, m, m + 1, m + 2]);
-        return { enonce: `Série : $${data.join(' \\;;\\; ')}$. Calcule la moyenne.`, reponse: m, validation: 'nombre' };
+        return { enonce: `Série : $${data.join(' \\;;\\; ')}$. Calcule la moyenne.`, reponse: m, validation: 'nombre', _v: { data, m } };
       },
       indices: ['Additionne toutes les valeurs.', 'Compte combien il y a de valeurs.', 'Divise la somme par ce nombre.'],
-      correction_detaillee: () => `<p>Moyenne $= \\dfrac{\\text{somme}}{\\text{effectif}}$.</p>`,
+      correction_etapes(st) {
+        const { data, m } = st._v, somme = data.reduce((a, b) => a + b, 0);
+        return [
+          `Somme : $${data.join(' + ')} = ${somme}$.`,
+          `Effectif : $${data.length}$ valeurs.`,
+          `Moyenne $= ${somme} \\div ${data.length} = ${m}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Calcule l\'étendue :',
       generer() {
         const data = Array.from({ length: 6 }, () => randInt(2, 20));
-        return { enonce: `Série : $${data.join(' \\;;\\; ')}$. Calcule l'étendue.`, reponse: Math.max(...data) - Math.min(...data), validation: 'nombre' };
+        return { enonce: `Série : $${data.join(' \\;;\\; ')}$. Calcule l'étendue.`, reponse: Math.max(...data) - Math.min(...data), validation: 'nombre', _v: { data } };
       },
       indices: ['Repère la plus grande valeur.', 'Repère la plus petite valeur.', 'Étendue $= \\max - \\min$.'],
-      correction_detaillee: () => `<p>Étendue $= \\max - \\min$.</p>`,
+      correction_etapes(st) {
+        const { data } = st._v, mx = Math.max(...data), mn = Math.min(...data);
+        return [
+          `Série rangée : $${[...data].sort((a, b) => a - b).join(' \\;;\\; ')}$.`,
+          `Maximum : $${mx}$ ; minimum : $${mn}$.`,
+          `Étendue $= ${mx} - ${mn} = ${mx - mn}$ (elle mesure la dispersion de la série).`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Calcule la médiane :',
       generer() {
         const data = Array.from({ length: 5 }, () => randInt(1, 20));
-        return { enonce: `Série : $${data.join(' \\;;\\; ')}$. Calcule la médiane.`, reponse: median(data), validation: 'nombre' };
+        return { enonce: `Série : $${data.join(' \\;;\\; ')}$. Calcule la médiane.`, reponse: median(data), validation: 'nombre', _v: { data } };
       },
       indices: ['Range les valeurs dans l\'ordre croissant.', 'Il y a 5 valeurs : la médiane est la 3ᵉ.', 'C\'est la valeur du milieu.'],
-      correction_detaillee: () => `<p>On ordonne la série, la médiane est la valeur centrale.</p>`,
+      correction_etapes(st) {
+        const { data } = st._v, tri = [...data].sort((a, b) => a - b);
+        return [
+          `On range la série dans l'ordre croissant : $${tri.join(' \\;;\\; ')}$.`,
+          `Il y a $${tri.length}$ valeurs : la médiane est la $${(tri.length + 1) / 2}$ᵉ (autant de valeurs avant qu'après).`,
+          `Médiane $= ${tri[(tri.length - 1) / 2]}$.`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'saisie', consigne: 'Lis le diagramme : quel est l\'effectif le plus élevé ?',
@@ -104,10 +125,17 @@ export default {
             data: { labels: ['Note A', 'Note B', 'Note C', 'Note D'], datasets: [{ data: eff, backgroundColor: '#c0894a' }] },
             options: { responsive: true, maintainAspectRatio: true, aspectRatio: 1.7, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } },
           }),
+          _v: { eff },
         };
       },
       indices: ['Cherche la barre la plus haute.', 'Lis sa hauteur sur l\'axe vertical.', 'C\'est le plus grand effectif.'],
-      correction_detaillee: () => `<p>L'effectif le plus élevé correspond à la barre la plus haute.</p>`,
+      correction_etapes(st) {
+        const { eff } = st._v, noms = ['Note A', 'Note B', 'Note C', 'Note D'], i = eff.indexOf(Math.max(...eff));
+        return [
+          `Effectifs lus sur le diagramme : ${noms.map((n, j) => `${n} : $${eff[j]}$`).join(', ')}.`,
+          `La barre la plus haute est celle de « ${noms[i]} » : l'effectif le plus élevé est $${eff[i]}$.`,
+        ];
+      },
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Calcule la médiane (arrondi au dixième si besoin) :',
@@ -131,10 +159,17 @@ export default {
       generer() {
         const data = Array.from({ length: 5 }, () => randInt(2, 18));
         const moy = Math.round((data.reduce((a, b) => a + b, 0) / data.length) * 10) / 10;
-        return { enonce: `Série : $${data.join(' \\;;\\; ')}$. Calcule la moyenne.`, reponse: moy, validation: 'nombre', tolerance: 0.05 };
+        return { enonce: `Série : $${data.join(' \\;;\\; ')}$. Calcule la moyenne.`, reponse: moy, validation: 'nombre', tolerance: 0.05, _v: { data, moy } };
       },
       indices: ['Additionne les 5 valeurs.', 'Divise par 5.', 'Arrondis au dixième.'],
-      correction_detaillee: () => `<p>Moyenne $= \\dfrac{\\text{somme}}{5}$, arrondie au dixième.</p>`,
+      correction_etapes(st) {
+        const { data, moy } = st._v, somme = data.reduce((a, b) => a + b, 0);
+        return [
+          `Somme : $${data.join(' + ')} = ${somme}$.`,
+          `Moyenne $= ${somme} \\div ${data.length} = ${String(Math.round((somme / data.length) * 1000) / 1000).replace('.', '{,}')}$.`,
+          `Arrondie au dixième : $${String(moy).replace('.', '{,}')}$.`,
+        ];
+      },
     },
 
     // ----- Niveau 2 : Lire les quartiles d'une série ordonnée -----
@@ -181,7 +216,7 @@ export default {
         };
       },
       indices: ['On ordonne toujours la série en premier.', 'On compte le nombre de valeurs.', 'La valeur centrale est la médiane.'],
-      correction_detaillee: () => `<p>Ordre : série de départ → ordonner → repérer la position centrale → lire la médiane.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : série de départ → ordonner → repérer la position centrale → lire la médiane.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
 
     // ----- Niveau 3 : Lire un box-plot (écart interquartile) -----

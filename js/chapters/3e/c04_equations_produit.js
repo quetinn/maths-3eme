@@ -43,28 +43,49 @@ export default {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Résous (sépare les solutions par ;) :',
       generer() {
         let a = randInt(1, 8), b = randInt(1, 8); while (b === a) b = randInt(1, 8);
-        return { enonce: `$${fac(a)}${fac(b)} = 0$`, reponse: [a, b], validation: 'solutions', reponseTex: `x = ${a} \\text{ ou } x = ${b}` };
+        return { enonce: `$${fac(a)}${fac(b)} = 0$`, reponse: [a, b], validation: 'solutions', reponseTex: `x = ${a} \\text{ ou } x = ${b}`, _v: { a, b } };
       },
       indices: ['Un produit nul : un des facteurs est nul.', 'Résous $x - a = 0$ puis $x - b = 0$.', 'Il y a deux solutions.'],
-      correction_detaillee: () => `<p>$x - a = 0$ ou $x - b = 0$ donne directement les deux solutions.</p>`,
+      correction_etapes(st) {
+        const { a, b } = st._v;
+        return [
+          `Un produit de facteurs est nul si (et seulement si) l'un des facteurs est nul.`,
+          `$x - ${a} = 0$ donne $x = ${a}$.`,
+          `$x - ${b} = 0$ donne $x = ${b}$. L'équation a donc deux solutions : $${a}$ et $${b}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Résous (sépare les solutions par ;) :',
       generer() {
         const a = randIntNonZero(2, 7);
-        return { enonce: `$x${fac(a)} = 0$`, reponse: [0, a], validation: 'solutions', reponseTex: `x = 0 \\text{ ou } x = ${a}` };
+        return { enonce: `$x${fac(a)} = 0$`, reponse: [0, a], validation: 'solutions', reponseTex: `x = 0 \\text{ ou } x = ${a}`, _v: { a } };
       },
       indices: ['Les facteurs sont $x$ et $(x-a)$.', '$x = 0$ est une solution évidente.', 'L\'autre vient de $x - a = 0$.'],
-      correction_detaillee: () => `<p>$x = 0$ ou $x - a = 0$.</p>`,
+      correction_etapes(st) {
+        const { a } = st._v;
+        return [
+          `Les deux facteurs sont $x$ et $(x - ${a})$.`,
+          `Premier facteur nul : $x = 0$.`,
+          `Second facteur nul : $x - ${a} = 0$, soit $x = ${a}$. Les solutions sont $0$ et $${a}$.`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Résous (sépare les solutions par ;) :',
       generer() {
         let a = randIntNonZero(-6, 6), b = randIntNonZero(-6, 6); while (b === a) b = randIntNonZero(-6, 6);
-        return { enonce: `$${fac(a)}${fac(b)} = 0$`, reponse: [a, b], validation: 'solutions', reponseTex: `x = ${a} \\text{ ou } x = ${b}` };
+        return { enonce: `$${fac(a)}${fac(b)} = 0$`, reponse: [a, b], validation: 'solutions', reponseTex: `x = ${a} \\text{ ou } x = ${b}`, _v: { a, b } };
       },
       indices: ['Attention aux signes des facteurs.', '$(x + 3) = 0$ donne $x = -3$.', 'Résous chaque facteur séparément.'],
-      correction_detaillee: () => `<p>Chaque facteur nul donne une solution (penser au signe).</p>`,
+      correction_etapes(st) {
+        const { a, b } = st._v, lit = (v) => (v < 0 ? `x + ${-v} = 0$ donne $x = ${v}` : `x - ${v} = 0$ donne $x = ${v}`);
+        return [
+          `Un produit est nul si l'un de ses facteurs est nul : on résout chaque facteur.`,
+          `$${lit(a)}$.`,
+          `$${lit(b)}$. Attention au signe : un « $+$ » dans la parenthèse donne une solution négative.`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'saisie', consigne: 'Résous (un facteur a un coefficient) :',
@@ -142,7 +163,7 @@ export default {
         };
       },
       indices: ['On part de la forme « produit = 0 ».', 'On sépare en deux équations.', 'On conclut avec les deux solutions.'],
-      correction_detaillee: () => `<p>Ordre : produit nul → séparer les facteurs → résoudre → conclure.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : produit nul → séparer les facteurs → résoudre → conclure.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

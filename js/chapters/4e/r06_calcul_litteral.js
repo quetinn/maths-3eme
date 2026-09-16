@@ -68,9 +68,16 @@ export default {
   exercices: [
     {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Développe :',
-      generer() { const k = randInt(2, 6), a = randInt(1, 9); return { enonce: `$${k}(x + ${a})$`, reponse: `${k}*x + ${k * a}`, reponseTex: `${k}x + ${k * a}`, validation: 'expression' }; },
+      generer() { const k = randInt(2, 6), a = randInt(1, 9); return { enonce: `$${k}(x + ${a})$`, reponse: `${k}*x + ${k * a}`, reponseTex: `${k}x + ${k * a}`, validation: 'expression', _v: { k, a } }; },
       indices: ['$k(a+b) = ka + kb$.', 'Multiplie le nombre par $x$, puis par la constante.', 'Écris les deux termes l\'un après l\'autre.'],
-      correction_detaillee: () => `<p>On distribue le facteur sur chaque terme.</p>`,
+      correction_etapes(st) {
+        const { k, a } = st._v;
+        return [
+          `On distribue le facteur $${k}$ sur chaque terme de la parenthèse : $${k} \\times x + ${k} \\times ${a}$.`,
+          `$${k} \\times x = ${k}x$ et $${k} \\times ${a} = ${k * a}$.`,
+          `Donc $${k}(x + ${a}) = ${k}x + ${k * a}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'complete', consigne: 'Complète le développement :',
@@ -80,15 +87,22 @@ export default {
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Réduis (regroupe les termes semblables) :',
-      generer() { const a = randInt(1, 6), c = randInt(1, 6), b = randInt(1, 9), d = randInt(1, 9); return { enonce: `$${a}x + ${b} + ${c}x + ${d}$`, reponse: `${a + c}*x + ${b + d}`, reponseTex: `${a + c}x + ${b + d}`, validation: 'expression' }; },
+      generer() { const a = randInt(1, 6), c = randInt(1, 6), b = randInt(1, 9), d = randInt(1, 9); return { enonce: `$${a}x + ${b} + ${c}x + ${d}$`, reponse: `${a + c}*x + ${b + d}`, reponseTex: `${a + c}x + ${b + d}`, validation: 'expression', _v: { a, b, c, d } }; },
       indices: ['Sépare les $x$ et les nombres.', 'Additionne les coefficients des $x$.', 'Additionne les nombres entre eux.'],
-      correction_detaillee: () => `<p>$ax + cx = (a+c)x$ et on additionne les nombres.</p>`,
+      correction_etapes(st) {
+        const { a, b, c, d } = st._v;
+        return [
+          `On regroupe les termes en $x$ d'un côté et les nombres de l'autre : $(${a}x + ${c}x) + (${b} + ${d})$.`,
+          `$${a}x + ${c}x = ${a + c}x$ (on additionne les coefficients) et $${b} + ${d} = ${b + d}$.`,
+          `Expression réduite : $${a + c}x + ${b + d}$.`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'ordonner_etapes', consigne: 'Remets dans l\'ordre le développement :',
       generer() { const k = randInt(2, 6), a = randInt(1, 9); return { etapes: [`Repérer la distributivité : un facteur devant une parenthèse`, `Multiplier le facteur par chaque terme : $${k} \\times x + ${k} \\times ${a}$`, `Calculer : $${k}x + ${k * a}$`] }; },
       indices: ['On repère d\'abord la structure.', 'On distribue avant de calculer.', 'On termine par le calcul.'],
-      correction_detaillee: () => `<p>Ordre : repérer la distributivité → multiplier chaque terme → calculer.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : repérer la distributivité → multiplier chaque terme → calculer.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Calcule la valeur de l\'expression :',
@@ -98,9 +112,16 @@ export default {
     },
     {
       id: 'e06', niveau: 3, type: 'saisie', consigne: 'Développe (facteur avec coefficient) :',
-      generer() { const k = randInt(2, 5), a = randInt(2, 5), b = randInt(1, 9); return { enonce: `$${k}(${a}x + ${b})$`, reponse: `${k * a}*x + ${k * b}`, reponseTex: `${k * a}x + ${k * b}`, validation: 'expression' }; },
+      generer() { const k = randInt(2, 5), a = randInt(2, 5), b = randInt(1, 9); return { enonce: `$${k}(${a}x + ${b})$`, reponse: `${k * a}*x + ${k * b}`, reponseTex: `${k * a}x + ${k * b}`, validation: 'expression', _v: { k, a, b } }; },
       indices: ['Multiplie $k$ par chaque terme.', '$k \\times ax = (k a)x$.', 'N\'oublie pas le terme constant.'],
-      correction_detaillee: () => `<p>$k(ax + b) = kax + kb$.</p>`,
+      correction_etapes(st) {
+        const { k, a, b } = st._v;
+        return [
+          `On distribue : $${k} \\times ${a}x + ${k} \\times ${b}$.`,
+          `$${k} \\times ${a}x = ${k * a}x$ (on multiplie les nombres, le $x$ reste) et $${k} \\times ${b} = ${k * b}$.`,
+          `Donc $${k}(${a}x + ${b}) = ${k * a}x + ${k * b}$.`,
+        ];
+      },
     },
   ],
 

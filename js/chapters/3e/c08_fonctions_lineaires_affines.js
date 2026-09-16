@@ -48,19 +48,32 @@ export default {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Calcule l\'image :',
       generer() {
         const a = randIntNonZero(-4, 4), b = randInt(-5, 5), x0 = randInt(-4, 4);
-        return { enonce: `$f(x) = ${affTeX(a, b)}$. &nbsp; Calcule $f(${x0})$.`, reponse: a * x0 + b, validation: 'nombre' };
+        return { enonce: `$f(x) = ${affTeX(a, b)}$. &nbsp; Calcule $f(${x0})$.`, reponse: a * x0 + b, validation: 'nombre', _v: { a, b, x0 } };
       },
       indices: ['Remplace $x$ par la valeur donnée.', 'Multiplie d\'abord, additionne ensuite.', 'Surveille les signes.'],
-      correction_detaillee: () => `<p>On substitue $x$ puis on calcule $ax+b$.</p>`,
+      correction_etapes(st) {
+        const { a, b, x0 } = st._v, p = (n) => (n < 0 ? `(${n})` : n), suite = b < 0 ? `- ${-b}` : `+ ${b}`;
+        return [
+          `On remplace $x$ par $${x0}$ : $f(${x0}) = ${a} \\times ${p(x0)} ${suite}$.`,
+          `$${a} \\times ${p(x0)} = ${a * x0}$.`,
+          `$${a * x0} ${suite} = ${a * x0 + b}$, donc $f(${x0}) = ${a * x0 + b}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Fonction linéaire — calcule l\'image :',
       generer() {
         const a = randIntNonZero(-5, 5), x0 = randInt(-5, 5);
-        return { enonce: `$f(x) = ${affTeX(a, 0)}$. &nbsp; Calcule $f(${x0})$.`, reponse: a * x0, validation: 'nombre' };
+        return { enonce: `$f(x) = ${affTeX(a, 0)}$. &nbsp; Calcule $f(${x0})$.`, reponse: a * x0, validation: 'nombre', _v: { a, x0 } };
       },
       indices: ['Une fonction linéaire, c\'est $f(x)=ax$.', 'Multiplie simplement $a$ par la valeur.', 'Attention au signe.'],
-      correction_detaillee: () => `<p>$f(x)=ax$ : on multiplie le coefficient par la valeur de $x$.</p>`,
+      correction_etapes(st) {
+        const { a, x0 } = st._v, p = (n) => (n < 0 ? `(${n})` : n);
+        return [
+          `La fonction est <strong>linéaire</strong> : $f(x) = ${a}x$, il n'y a pas de terme constant.`,
+          `$f(${x0}) = ${a} \\times ${p(x0)} = ${a * x0}$.`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Calcule le coefficient directeur :',
@@ -86,10 +99,18 @@ export default {
           enonce: `Quelle est l'expression de la droite tracée ?`,
           choix, correct: choix.indexOf(good),
           visuel: (c) => plotFunction(c, f, { xmin: -5, xmax: 5 }),
+          _v: { a, b, good },
         };
       },
       indices: ['Regarde où la droite coupe l\'axe vertical : c\'est $b$.', 'Regarde si la droite monte ($a>0$) ou descend ($a<0$).', 'Compte la pente : montée pour un pas vers la droite.'],
-      correction_detaillee: () => `<p>On lit $b$ (intersection avec l'axe vertical) puis le signe et la valeur de la pente $a$.</p>`,
+      correction_etapes(st) {
+        const { a, b, good } = st._v;
+        return [
+          `La droite coupe l'axe vertical en $${b}$ : l'ordonnée à l'origine est $b = ${b}$.`,
+          `Quand on avance de $1$ vers la droite, la droite ${a > 0 ? 'monte' : 'descend'} de $${Math.abs(a)}$ : le coefficient directeur est $a = ${a}$.`,
+          `D'où $${good}$.`,
+        ];
+      },
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Résous $f(x) = k$ (antécédent) :',
@@ -165,7 +186,7 @@ export default {
         };
       },
       indices: ['On calcule la pente en premier.', 'L\'ordonnée à l\'origine se déduit ensuite.', 'On écrit $f(x)$ en dernier.'],
-      correction_detaillee: () => `<p>Ordre : coefficient directeur $a$ → ordonnée à l'origine $b$ → expression $f(x)=ax+b$.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : coefficient directeur $a$ → ordonnée à l'origine $b$ → expression $f(x)=ax+b$.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

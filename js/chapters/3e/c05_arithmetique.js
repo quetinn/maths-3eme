@@ -2,7 +2,7 @@
 //  c05_arithmetique.js — Nombres premiers, PGCD, fractions irréductibles
 // =====================================================================
 
-import { randInt, pick, gcd, isPrime } from '../../engine.js';
+import { randInt, gcd, isPrime } from '../../engine.js';
 
 function decompose(n) {
   const f = {}; let d = 2;
@@ -55,19 +55,34 @@ export default {
       id: 'e01', niveau: 1, type: 'vrai_faux', consigne: 'Vrai ou faux :',
       generer() {
         const n = randInt(11, 59);
-        return { enonce: `Le nombre $${n}$ est-il premier ?`, reponse: isPrime(n) };
+        return { enonce: `Le nombre $${n}$ est-il premier ?`, reponse: isPrime(n), _v: { n } };
       },
       indices: ['Cherche un diviseur autre que 1 et lui-même.', 'Teste 2, 3, 5, 7…', "S'il est pair (sauf 2), il n'est pas premier."],
-      correction_detaillee: () => `<p>On teste les diviseurs jusqu'à la racine carrée du nombre.</p>`,
+      correction_etapes(st) {
+        const { n } = st._v;
+        if (isPrime(n)) {
+          const lim = Math.floor(Math.sqrt(n));
+          return [`On teste les diviseurs premiers jusqu'à $${lim}$ (inutile d'aller plus loin car $${lim + 1}^2 > ${n}$).`, `Aucun ne divise $${n}$ : il n'a que $1$ et lui-même comme diviseurs, il est <strong>premier</strong>.`];
+        }
+        let d = 2; while (n % d !== 0) d++;
+        return [`On cherche un diviseur : $${n} = ${d} \\times ${n / d}$.`, `$${n}$ a donc d'autres diviseurs que $1$ et lui-même : il <strong>n'est pas premier</strong>.`];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Calcule le PGCD :',
       generer() {
         const g = randInt(2, 9), [p, q] = coprime(2, 7);
-        return { enonce: `Quel est le PGCD de $${g * p}$ et $${g * q}$ ?`, reponse: g, validation: 'nombre' };
+        return { enonce: `Quel est le PGCD de $${g * p}$ et $${g * q}$ ?`, reponse: g, validation: 'nombre', _v: { g, p, q } };
       },
       indices: ['Cherche le plus grand nombre qui divise les deux.', 'Tu peux décomposer chacun en facteurs premiers.', 'Multiplie les facteurs communs.'],
-      correction_detaillee: () => `<p>Le PGCD est le produit des facteurs premiers communs aux deux nombres.</p>`,
+      correction_etapes(st) {
+        const { g, p, q } = st._v;
+        return [
+          `On met en évidence un facteur commun : $${g * p} = ${g} \\times ${p}$ et $${g * q} = ${g} \\times ${q}$.`,
+          `$${p}$ et $${q}$ n'ont aucun diviseur commun (autre que $1$) : on ne peut pas aller plus loin.`,
+          `PGCD$(${g * p}\\,;${g * q}) = ${g}$.`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Décompose en produit de facteurs premiers (ex. 2^3*3) :',
@@ -109,10 +124,15 @@ export default {
         let a, b;
         if (Math.random() < 0.5) { const [p, q] = coprime(2, 12); a = p; b = q; }
         else { const g = randInt(2, 5), [p, q] = coprime(2, 9); a = g * p; b = g * q; }
-        return { enonce: `La fraction $\\dfrac{${a}}{${b}}$ est-elle irréductible ?`, reponse: gcd(a, b) === 1 };
+        return { enonce: `La fraction $\\dfrac{${a}}{${b}}$ est-elle irréductible ?`, reponse: gcd(a, b) === 1, _v: { a, b } };
       },
       indices: ['Une fraction est irréductible si PGCD = 1.', 'Cherche un diviseur commun > 1.', 'Si tu en trouves un, elle est réductible.'],
-      correction_detaillee: () => `<p>On vérifie si le PGCD du numérateur et du dénominateur vaut 1.</p>`,
+      correction_etapes(st) {
+        const { a, b } = st._v, d = gcd(a, b);
+        return d === 1
+          ? [`On cherche un diviseur commun à $${a}$ et $${b}$ : il n'y en a aucun à part $1$.`, `PGCD$(${a}\\,;${b}) = 1$ : la fraction <strong>est irréductible</strong>.`]
+          : [`$${a}$ et $${b}$ sont tous les deux divisibles par $${d}$.`, `$\\dfrac{${a}}{${b}} = \\dfrac{${a / d}}{${b / d}}$ : la fraction <strong>n'était pas irréductible</strong>.`];
+      },
     },
 
     // ----- Niveau 1 : Compléter la simplification -----
@@ -157,7 +177,7 @@ export default {
         };
       },
       indices: ['On calcule d\'abord le PGCD.', 'On divise ensuite haut et bas par ce PGCD.', 'On écrit enfin la fraction simplifiée.'],
-      correction_detaillee: () => `<p>Ordre : PGCD → diviser le numérateur → diviser le dénominateur → conclure.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : PGCD → diviser le numérateur → diviser le dénominateur → conclure.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

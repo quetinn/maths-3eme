@@ -60,9 +60,17 @@ export default {
   exercices: [
     {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Calcule la puissance :',
-      generer() { const a = randInt(2, 5), n = randInt(2, 4); return { enonce: `Calcule $${a}^{${n}}$.`, reponse: Math.pow(a, n), validation: 'nombre' }; },
+      generer() { const a = randInt(2, 5), n = randInt(2, 4); return { enonce: `Calcule $${a}^{${n}}$.`, reponse: Math.pow(a, n), validation: 'nombre', _v: { a, n } }; },
       indices: ['$a^n$ : multiplie $a$ par lui-même $n$ fois.', 'Procède étape par étape.', 'Ex. $2^3 = 2 \\times 2 \\times 2 = 8$.'],
-      correction_detaillee: () => `<p>On effectue le produit de $n$ facteurs égaux à la base.</p>`,
+      correction_etapes(st) {
+        const { a, n } = st._v, facteurs = Array(n).fill(a);
+        const etapes = [`$${a}^{${n}}$ est le produit de $${n}$ facteurs égaux à $${a}$ : $${facteurs.join(' \\times ')}$.`];
+        let v = a, ligne = '';
+        for (let i = 1; i < n; i++) { ligne += `$${v} \\times ${a} = ${v * a}$` + (i < n - 1 ? ' ; ' : ''); v *= a; }
+        etapes.push(`On calcule pas à pas : ${ligne}.`);
+        etapes.push(`Donc $${a}^{${n}} = ${Math.pow(a, n)}$.`);
+        return etapes;
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'complete', consigne: 'Complète :',
@@ -72,15 +80,21 @@ export default {
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Écris la puissance de 10 sous forme de nombre :',
-      generer() { const n = randInt(2, 6); return { enonce: `Combien vaut $10^{${n}}$ ?`, reponse: Math.pow(10, n), validation: 'nombre' }; },
+      generer() { const n = randInt(2, 6); return { enonce: `Combien vaut $10^{${n}}$ ?`, reponse: Math.pow(10, n), validation: 'nombre', _v: { n } }; },
       indices: ['$10^n$ : un $1$ suivi de $n$ zéros.', 'Compte bien le nombre de zéros.', 'Ex. $10^3 = 1000$.'],
-      correction_detaillee: () => `<p>$10^n$ est le nombre $1$ suivi de $n$ zéros.</p>`,
+      correction_etapes(st) {
+        const { n } = st._v, v = Math.pow(10, n);
+        return [
+          `$10^{${n}}$ est le produit de $${n}$ facteurs égaux à $10$.`,
+          `C'est donc un $1$ suivi de $${n}$ zéros : $${v.toLocaleString('fr-FR').replace(/ | /g, '\\,')}$.`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'ordonner_etapes', consigne: 'Remets dans l\'ordre le calcul de la puissance :',
       generer() { const a = randInt(2, 4), n = 3; return { etapes: [`Écrire la puissance comme un produit : $${a}^{3} = ${a} \\times ${a} \\times ${a}$`, `Multiplier les deux premiers : $${a} \\times ${a} = ${a * a}$`, `Multiplier par le dernier : $${a * a} \\times ${a} = ${a * a * a}$`] }; },
       indices: ['On transforme d\'abord la puissance en produit.', 'On multiplie les facteurs un par un.', 'On obtient la valeur finale.'],
-      correction_detaillee: () => `<p>Ordre : écrire le produit → multiplier pas à pas → valeur finale.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : écrire le produit → multiplier pas à pas → valeur finale.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Produit de même base — calcule :',
@@ -90,9 +104,16 @@ export default {
     },
     {
       id: 'e06', niveau: 3, type: 'qcm', consigne: 'Choisis l\'écriture correcte :',
-      generer() { const a = pick([2, 3, 5]), m = randInt(2, 4), n = m === 2 ? randInt(3, 4) : randInt(2, 4); /* m=n=2 → m+n = m×n : choix en double */ const choix = [`${a}^{${m + n}}`, `${a}^{${m * n}}`, `${a}^{${m}} + ${a}^{${n}}`, `${2 * a}^{${m + n}}`]; return { enonce: `$${a}^{${m}} \\times ${a}^{${n}}$ est égal à :`, choix, correct: 0 }; },
+      generer() { const a = pick([2, 3, 5]), m = randInt(2, 4), n = m === 2 ? randInt(3, 4) : randInt(2, 4); /* m=n=2 → m+n = m×n : choix en double */ const choix = [`${a}^{${m + n}}`, `${a}^{${m * n}}`, `${a}^{${m}} + ${a}^{${n}}`, `${2 * a}^{${m + n}}`]; return { enonce: `$${a}^{${m}} \\times ${a}^{${n}}$ est égal à :`, choix, correct: 0, _v: { a, m, n } }; },
       indices: ['Même base : on additionne les exposants.', 'On ne multiplie PAS les exposants.', '$a^m \\times a^n = a^{m+n}$.'],
-      correction_detaillee: () => `<p>$a^m \\times a^n = a^{m+n}$ (on additionne les exposants).</p>`,
+      correction_etapes(st) {
+        const { a, m, n } = st._v;
+        return [
+          `$${a}^{${m}} = ${Array(m).fill(a).join(' \\times ')}$ et $${a}^{${n}} = ${Array(n).fill(a).join(' \\times ')}$.`,
+          `En tout, on multiplie $${m} + ${n} = ${m + n}$ facteurs égaux à $${a}$.`,
+          `Donc $${a}^{${m}} \\times ${a}^{${n}} = ${a}^{${m + n}}$ (on additionne les exposants, on ne les multiplie pas).`,
+        ];
+      },
     },
   ],
 

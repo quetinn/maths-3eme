@@ -88,12 +88,19 @@ export default {
         const ang = pick([20, 25, 30, 35, 40, 45, 50, 55, 60]), hyp = randInt(6, 14);
         return {
           enonce: `Triangle rectangle. $\\widehat{B}=${ang}°$, hypoténuse $= ${hyp}$. Calcule le côté opposé à $\\widehat B$.`,
-          reponse: round1(hyp * Math.sin(deg2rad(ang))), validation: 'nombre', tolerance: 0.05,
+          reponse: round1(hyp * Math.sin(deg2rad(ang))), validation: 'nombre', tolerance: 0.05, _v: { ang, hyp },
           visuel: (c) => triangleSVG(c, { angle: ang, hyp: String(hyp), opp: '?', adj: '' }),
         };
       },
       indices: ['Opposé et hypoténuse → sinus (SOH).', '$\\sin\\alpha = \\dfrac{\\text{opposé}}{\\text{hyp}}$.', 'Opposé $= \\text{hyp}\\times\\sin\\alpha$. Calculatrice en degrés !'],
-      correction_detaillee: () => `<p>opposé $= \\text{hypoténuse}\\times\\sin(\\alpha)$.</p>`,
+      correction_etapes(st) {
+        const { ang, hyp } = st._v, opp = round1(hyp * Math.sin(deg2rad(ang)));
+        return [
+          `On connaît l'hypoténuse et on cherche le côté opposé : c'est le <strong>sinus</strong> (SOH).`,
+          `$\\sin(${ang}°) = \\dfrac{\\text{opposé}}{${hyp}}$, donc opposé $= ${hyp} \\times \\sin(${ang}°)$.`,
+          `À la calculatrice (degrés) : opposé $\\approx ${String(opp).replace('.', '{,}')}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Calcule le côté adjacent (arrondi au dixième) :',
@@ -101,12 +108,19 @@ export default {
         const ang = pick([20, 25, 30, 35, 40, 45, 50, 55, 60]), hyp = randInt(6, 14);
         return {
           enonce: `Triangle rectangle. $\\widehat{B}=${ang}°$, hypoténuse $= ${hyp}$. Calcule le côté adjacent à $\\widehat B$.`,
-          reponse: round1(hyp * Math.cos(deg2rad(ang))), validation: 'nombre', tolerance: 0.05,
+          reponse: round1(hyp * Math.cos(deg2rad(ang))), validation: 'nombre', tolerance: 0.05, _v: { ang, hyp },
           visuel: (c) => triangleSVG(c, { angle: ang, hyp: String(hyp), adj: '?', opp: '' }),
         };
       },
       indices: ['Adjacent et hypoténuse → cosinus (CAH).', '$\\cos\\alpha = \\dfrac{\\text{adjacent}}{\\text{hyp}}$.', 'Adjacent $= \\text{hyp}\\times\\cos\\alpha$.'],
-      correction_detaillee: () => `<p>adjacent $= \\text{hypoténuse}\\times\\cos(\\alpha)$.</p>`,
+      correction_etapes(st) {
+        const { ang, hyp } = st._v, adj = round1(hyp * Math.cos(deg2rad(ang)));
+        return [
+          `On connaît l'hypoténuse et on cherche le côté adjacent : c'est le <strong>cosinus</strong> (CAH).`,
+          `$\\cos(${ang}°) = \\dfrac{\\text{adjacent}}{${hyp}}$, donc adjacent $= ${hyp} \\times \\cos(${ang}°)$.`,
+          `À la calculatrice (degrés) : adjacent $\\approx ${String(adj).replace('.', '{,}')}$.`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Calcule l\'angle (en degrés, arrondi au degré) :',
@@ -114,12 +128,19 @@ export default {
         const opp = randInt(3, 8), adj = randInt(3, 8);
         return {
           enonce: `Triangle rectangle. Côté opposé à $\\widehat B = ${opp}$, côté adjacent $= ${adj}$. Calcule $\\widehat B$.`,
-          reponse: Math.round(Math.atan(opp / adj) * 180 / Math.PI), validation: 'nombre', tolerance: 0.5,
+          reponse: Math.round(Math.atan(opp / adj) * 180 / Math.PI), validation: 'nombre', tolerance: 0.5, _v: { opp, adj },
           visuel: (c) => triangleSVG(c, { angle: 40, opp: String(opp), adj: String(adj), hyp: '', labels: { '?°': '?°' } }),
         };
       },
       indices: ['Opposé et adjacent → tangente (TOA).', '$\\tan\\widehat B = \\dfrac{\\text{opposé}}{\\text{adjacent}}$.', '$\\widehat B = \\tan^{-1}\\!\\left(\\dfrac{\\text{opp}}{\\text{adj}}\\right)$.'],
-      correction_detaillee: () => `<p>$\\widehat B = \\tan^{-1}\\!\\left(\\dfrac{\\text{opposé}}{\\text{adjacent}}\\right)$, calculatrice en degrés.</p>`,
+      correction_etapes(st) {
+        const { opp, adj } = st._v, r = Math.round((opp / adj) * 1000) / 1000, ang = Math.round((Math.atan(opp / adj) * 180) / Math.PI);
+        return [
+          `On connaît l'opposé et l'adjacent : c'est la <strong>tangente</strong> (TOA).`,
+          `$\\tan(\\widehat B) = \\dfrac{${opp}}{${adj}} \\approx ${String(r).replace('.', '{,}')}$.`,
+          `$\\widehat B = \\tan^{-1}(${String(r).replace('.', '{,}')}) \\approx ${ang}°$.`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'qcm', consigne: 'Quel rapport utiliser ?',
@@ -136,11 +157,19 @@ export default {
         const choix = ['cosinus', 'sinus', 'tangente'];
         return {
           enonce: `On connaît le côté <strong>${known}</strong> et on cherche le côté <strong>${cherche}</strong>. Quel rapport relie ces deux côtés (avec l'angle) ?`,
-          choix, correct: choix.indexOf(good),
+          choix, correct: choix.indexOf(good), ordre_fixe: true, _v: { known, cherche, good },
         };
       },
       indices: ['SOH : Sinus = Opposé/Hyp.', 'CAH : Cosinus = Adjacent/Hyp.', 'TOA : Tangente = Opposé/Adjacent.'],
-      correction_detaillee: () => `<p>On choisit le rapport qui relie exactement les deux côtés en jeu.</p>`,
+      correction_etapes(st) {
+        const { known, cherche, good } = st._v;
+        const formule = good === 'sinus' ? '\\sin = \\dfrac{\\text{opposé}}{\\text{hypoténuse}}' : good === 'cosinus' ? '\\cos = \\dfrac{\\text{adjacent}}{\\text{hypoténuse}}' : '\\tan = \\dfrac{\\text{opposé}}{\\text{adjacent}}';
+        return [
+          `Les deux côtés en jeu sont : ${known} (connu) et ${cherche} (cherché).`,
+          `Le rapport qui relie exactement ces deux côtés est le <strong>${good}</strong> : $${formule}$.`,
+          'Moyen mnémotechnique : SOH – CAH – TOA.',
+        ];
+      },
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Calcule l\'hypoténuse (arrondi au dixième) :',
@@ -169,12 +198,19 @@ export default {
         const ang = pick([20, 25, 30, 35, 40, 50, 55]), adj = randInt(4, 12);
         return {
           enonce: `Triangle rectangle. $\\widehat{B}=${ang}°$, côté adjacent $= ${adj}$. Calcule le côté opposé.`,
-          reponse: round1(adj * Math.tan(deg2rad(ang))), validation: 'nombre', tolerance: 0.05,
+          reponse: round1(adj * Math.tan(deg2rad(ang))), validation: 'nombre', tolerance: 0.05, _v: { ang, adj },
           visuel: (c) => triangleSVG(c, { angle: ang, adj: String(adj), opp: '?', hyp: '' }),
         };
       },
       indices: ['Opposé et adjacent → tangente.', '$\\tan\\alpha = \\dfrac{\\text{opposé}}{\\text{adjacent}}$.', 'opposé $= \\text{adjacent}\\times\\tan\\alpha$.'],
-      correction_detaillee: () => `<p>opposé $= \\text{adjacent}\\times\\tan(\\alpha)$.</p>`,
+      correction_etapes(st) {
+        const { ang, adj } = st._v, opp = round1(adj * Math.tan(deg2rad(ang)));
+        return [
+          `Opposé et adjacent : on utilise la tangente (TOA).`,
+          `$\\tan(${ang}°) = \\dfrac{\\text{opposé}}{${adj}}$, donc opposé $= ${adj} \\times \\tan(${ang}°)$.`,
+          `opposé $\\approx ${String(opp).replace('.', '{,}')}$ (calculatrice en degrés).`,
+        ];
+      },
     },
 
     // ----- Niveau 1 : Compléter un calcul de côté (angle remarquable) -----
@@ -219,7 +255,7 @@ export default {
         };
       },
       indices: ['On repère d\'abord quels côtés sont en jeu.', 'On choisit cos, sin ou tan selon ces côtés.', 'Le calcul vient en dernier.'],
-      correction_detaillee: () => `<p>Ordre : repérer les côtés → choisir le rapport (SOH-CAH-TOA) → écrire l'égalité → calculer.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : repérer les côtés → choisir le rapport (SOH-CAH-TOA) → écrire l'égalité → calculer.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

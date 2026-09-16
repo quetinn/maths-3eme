@@ -434,6 +434,42 @@ em { font-style: italic; color: inherit; }
   font-size: 0.92rem; line-height: 1.5; white-space: pre; tab-size: 4;
 }
 
+/* Figures des chapitres (commun.js) */
+.fig-chap { max-width: 360px; display: block; margin: 0.4rem auto; }
+.fig-chap.fig-droite { max-width: 420px; }
+.fig-chap.fig-large { max-width: 460px; }
+.fig-rangee { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; }
+.fig-rangee .fig-chap { flex: 1 1 140px; max-width: 200px; margin: 0; }
+
+/* Tableaux de valeurs */
+.tab-wrap { overflow-x: auto; margin: 0.5rem 0; }
+.tab-math { border-collapse: collapse; margin: 0 auto; font-variant-numeric: tabular-nums; background: var(--surface); }
+.tab-math th, .tab-math td { border: 1px solid var(--border); padding: 0.35rem 0.7rem; text-align: center; min-width: 2.6rem; }
+.tab-math th { background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; text-align: left; white-space: nowrap; }
+
+/* Programmes en blocs façon Scratch */
+.scratch {
+  display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; max-width: 100%; overflow-x: auto;
+  padding: 0.6rem 0.75rem; margin: 0.3rem 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font: 600 0.88rem/1.25 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.sb { padding: 0.38rem 0.7rem; border-radius: 5px; white-space: nowrap; color: #fff; box-shadow: inset 0 -2px rgba(0,0,0,0.16); }
+.sb-val { display: inline-block; background: #fff; color: #2b2b2b; border-radius: 999px; padding: 0 0.45rem; margin: 0 0.15rem; font-weight: 600; }
+.sb-evt { background: #ffbf00; color: #3b2b00; border-radius: 16px 16px 5px 5px; padding-top: 0.55rem; }
+.sb-mvt { background: #3a78d8; }
+.sb-app { background: #7b55d6; }
+.sb-ctl { background: #ffab19; color: #3b2600; }
+.sb-var { background: #f07d10; color: #2e1800; }
+.sb-ope { background: #3f9e45; }
+.sb-sty { background: #0b8f6c; }
+.sb-cap { background: #2f8fb8; }
+.sb-c { display: flex; flex-direction: column; align-items: flex-start; }
+.sb-c > .sb { border-radius: 5px 5px 5px 0; }
+.sb-c > .sb-mid { border-radius: 0 5px 5px 0; }
+.sb-corps { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 2px 0 2px 12px; border-left: 12px solid; min-height: 1.4rem; }
+.sb-c.sb-ctl > .sb-corps { border-color: #ffab19; }
+.sb-c > .sb-fin { width: 5.5rem; height: 0.7rem; padding: 0; border-radius: 0 0 5px 5px; }
+
 /* ----------------------------------------------------- Toast badge */
 .toast-badge {
   position: fixed; left: 50%; bottom: 24px;

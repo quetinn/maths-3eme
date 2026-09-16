@@ -51,10 +51,19 @@ export default {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Calcule la puissance :',
       generer() {
         const a = randInt(2, 5), n = randInt(2, 4);
-        return { enonce: `Calcule $${a}^{${n}}$.`, reponse: Math.pow(a, n), validation: 'nombre' };
+        return { enonce: `Calcule $${a}^{${n}}$.`, reponse: Math.pow(a, n), validation: 'nombre', _v: { a, n } };
       },
       indices: ['$a^n$ : multiplie $a$ par lui-même $n$ fois.', 'Procède étape par étape.', 'Ex. $3^3 = 3\\times3\\times3 = 27$.'],
-      correction_detaillee: () => `<p>On effectue le produit de $n$ facteurs égaux à la base.</p>`,
+      correction_etapes(st) {
+        const { a, n } = st._v;
+        let v = a, ligne = '';
+        for (let i = 1; i < n; i++) { ligne += `$${v} \\times ${a} = ${v * a}$` + (i < n - 1 ? ' ; ' : ''); v *= a; }
+        return [
+          `$${a}^{${n}}$ est le produit de $${n}$ facteurs égaux à $${a}$ : $${Array(n).fill(a).join(' \\times ')}$.`,
+          `Pas à pas : ${ligne}.`,
+          `$${a}^{${n}} = ${Math.pow(a, n)}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Calcule la racine carrée :',
@@ -156,7 +165,7 @@ export default {
         };
       },
       indices: ['On repère d\'abord le nombre de départ.', 'On déplace la virgule après le 1er chiffre.', 'Le nombre de rangs donne l\'exposant.'],
-      correction_detaillee: () => `<p>Ordre : nombre → placer la virgule → compter les rangs → écrire $a \\times 10^n$.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : nombre → placer la virgule → compter les rangs → écrire $a \\times 10^n$.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

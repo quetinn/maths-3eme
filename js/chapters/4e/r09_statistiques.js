@@ -64,9 +64,16 @@ export default {
   exercices: [
     {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Calcule la moyenne :',
-      generer() { const m = randInt(5, 13), data = shuffle([m - 2, m - 1, m, m + 1, m + 2]); return { enonce: `Série : $${data.join(' \\;;\\; ')}$. Calcule la moyenne.`, reponse: m, validation: 'nombre' }; },
+      generer() { const m = randInt(5, 13), data = shuffle([m - 2, m - 1, m, m + 1, m + 2]); return { enonce: `Série : $${data.join(' \\;;\\; ')}$. Calcule la moyenne.`, reponse: m, validation: 'nombre', _v: { data, m } }; },
       indices: ['Additionne toutes les valeurs.', 'Compte combien il y en a.', 'Divise la somme par ce nombre.'],
-      correction_detaillee: () => `<p>Moyenne $= \\dfrac{\\text{somme}}{\\text{effectif}}$.</p>`,
+      correction_etapes(st) {
+        const { data, m } = st._v, somme = data.reduce((a, b) => a + b, 0);
+        return [
+          `Somme des valeurs : $${data.join(' + ')} = ${somme}$.`,
+          `Il y a $${data.length}$ valeurs.`,
+          `Moyenne $= ${somme} \\div ${data.length} = ${m}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'complete', consigne: 'Complète le calcul de la moyenne :',
@@ -76,15 +83,22 @@ export default {
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Calcule l\'étendue :',
-      generer() { const data = Array.from({ length: 6 }, () => randInt(2, 20)); return { enonce: `Série : $${data.join(' \\;;\\; ')}$. Calcule l'étendue.`, reponse: Math.max(...data) - Math.min(...data), validation: 'nombre' }; },
+      generer() { const data = Array.from({ length: 6 }, () => randInt(2, 20)); return { enonce: `Série : $${data.join(' \\;;\\; ')}$. Calcule l'étendue.`, reponse: Math.max(...data) - Math.min(...data), validation: 'nombre', _v: { data } }; },
       indices: ['Repère la plus grande valeur.', 'Repère la plus petite.', 'Étendue $= \\max - \\min$.'],
-      correction_detaillee: () => `<p>Étendue $= \\max - \\min$.</p>`,
+      correction_etapes(st) {
+        const { data } = st._v, mx = Math.max(...data), mn = Math.min(...data);
+        return [
+          `Série rangée : $${[...data].sort((a, b) => a - b).join(' \\;;\\; ')}$.`,
+          `Plus grande valeur : $${mx}$ ; plus petite : $${mn}$.`,
+          `Étendue $= ${mx} - ${mn} = ${mx - mn}$.`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'ordonner_etapes', consigne: 'Remets dans l\'ordre le calcul de la moyenne :',
       generer() { const data = Array.from({ length: 4 }, () => randInt(2, 12)); const s = data.reduce((a, b) => a + b, 0); return { etapes: [`On additionne les valeurs : $${data.join(' + ')} = ${s}$`, `On compte l'effectif : 4 valeurs`, `On divise : $${s} \\div 4 = ${Math.round(s / 4 * 100) / 100}$`] }; },
       indices: ['On additionne d\'abord.', 'On compte le nombre de valeurs.', 'On divise en dernier.'],
-      correction_detaillee: () => `<p>Ordre : additionner → compter → diviser.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : additionner → compter → diviser.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Calcule la moyenne (arrondi au dixième) :',
@@ -94,9 +108,16 @@ export default {
     },
     {
       id: 'e06', niveau: 3, type: 'saisie', consigne: 'Calcule la fréquence (décimal ou pourcentage) :',
-      generer() { const tot = pick([20, 25, 40, 50]), eff = randInt(2, tot - 1); return { enonce: `Dans un groupe de $${tot}$ personnes, $${eff}$ font du sport. Quelle est la fréquence (décimal) ?`, reponse: eff / tot, validation: 'nombre', tolerance: 0.005 }; },
+      generer() { const tot = pick([20, 25, 40, 50]), eff = randInt(2, tot - 1); return { enonce: `Dans un groupe de $${tot}$ personnes, $${eff}$ font du sport. Quelle est la fréquence (décimal) ?`, reponse: eff / tot, validation: 'nombre', tolerance: 0.005, _v: { tot, eff } }; },
       indices: ['Fréquence $= \\dfrac{\\text{effectif}}{\\text{effectif total}}$.', 'Divise l\'effectif par le total.', 'Tu peux donner un décimal (ex. 0,4).'],
-      correction_detaillee: () => `<p>$f = \\dfrac{\\text{effectif}}{\\text{effectif total}}$.</p>`,
+      correction_etapes(st) {
+        const { tot, eff } = st._v, f = Math.round((eff / tot) * 10000) / 10000, d = String(f).replace('.', '{,}');
+        return [
+          `Effectif : $${eff}$ ; effectif total : $${tot}$.`,
+          `$f = \\dfrac{${eff}}{${tot}} = ${d}$.`,
+          `En pourcentage : $${d} \\times 100 = ${String(Math.round(f * 10000) / 100).replace('.', '{,}')}\\,\\%$.`,
+        ];
+      },
     },
   ],
 

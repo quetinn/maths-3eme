@@ -16,13 +16,14 @@ js/cloud.js             Comptes élèves + synchronisation avec le Google Sheet
 js/fusion.js            Fusion de deux progressions (plusieurs appareils)
 js/config.js            URL du script Google (sauvegarde en ligne)
 backend/Code.gs         Serveur de sauvegarde (Google Apps Script) + INSTALLATION.md
-tools/                  test_backend.mjs (tests), mock_sheets.mjs (faux Google Sheets local)
+tools/                  test_chapitres.mjs et test_backend.mjs (tests), mock_sheets.mjs
 js/engine.js            Moteur d'exercices : génération, validation, indices, quiz
 js/render.js            KaTeX, traceur de fonctions SVG, JSXGraph, Chart.js
 js/brevet.js            Problèmes type brevet (situation + sous-questions)
+js/chapters/commun.js   Outils des chapitres : figures SVG, tableaux, blocs Scratch
+js/chapters/5e/vNN_*.js Chapitres de 5ᵉ (17, nouveau programme 2026)
+js/chapters/4e/rNN_*.js Chapitres de 4ᵉ (18)
 js/chapters/3e/cNN_*.js Chapitres de 3ᵉ (17)
-js/chapters/4e/rNN_*.js Chapitres de 4ᵉ (12 rédigés, d'autres en préparation)
-js/chapters/5e/vNN_*.js Chapitres de 5ᵉ (nouveau programme 2026, en préparation)
 serve.py                Serveur statique sans cache pour le dev local (optionnel)
 ```
 
@@ -34,7 +35,10 @@ serve.py                Serveur statique sans cache pour le dev local (optionnel
   fonctions · Géométrie et grandeurs · Données et probabilités · Algorithmique.
 - L'élève indique **sa classe** au premier lancement (modifiable dans ⚙️ Réglages) ; son
   programme s'affiche en premier, mais les onglets 5ᵉ/4ᵉ/3ᵉ donnent accès à tout le collège.
-- Un chapitre avec `module: null` dans `programme.js` apparaît « En préparation ».
+- Les **52 chapitres** sont rédigés (cours, méthode, 8 à 11 exercices générés aléatoirement,
+  quiz bilan). Un chapitre avec `module: null` dans `programme.js` apparaîtrait « En préparation ».
+- Chaque correction reprend **les valeurs du tirage** de l'élève (pas de corrigé générique) ;
+  `node tools/test_chapitres.mjs` le vérifie automatiquement.
 - Les identifiants de chapitre ne changent jamais (clé de la progression) :
   `c` = 3ᵉ, `r` = 4ᵉ, `v` = 5ᵉ.
 
@@ -75,9 +79,15 @@ express : `express: { cours: [0, 2], exercices: ['e01', 'e03', 'e05'] }`.
 Les modules ES ne fonctionnent pas en `file://` : il faut un serveur HTTP.
 
 ```bash
-python serve.py            # serveur sans cache (recommandé en dev) → http://localhost:8124
-node tools/mock_sheets.mjs # (option) faux Google Sheets → http://localhost:8125/exec
+python serve.py              # serveur sans cache (recommandé en dev) → http://localhost:8124
+node tools/test_chapitres.mjs # vérifie les 52 chapitres (générateurs, corrections, figures)
+node tools/mock_sheets.mjs   # (option) faux Google Sheets → http://localhost:8125/exec
 ```
+
+`test_chapitres.mjs` rejoue chaque exercice 150 fois : générateur sans erreur, réponse attendue
+acceptée par le correcteur, énoncé non recopiable, QCM sans doublon, correction qui reprend les
+valeurs tirées. `DETAIL=1` affiche les avertissements, un identifiant de chapitre en argument
+(`node tools/test_chapitres.mjs v09`) limite la vérification.
 
 Pour utiliser le faux Google Sheets en local : dans la console du navigateur,
 `localStorage.setItem('mc_api_dev', 'http://localhost:8125/exec')` (mot de passe tuteur : `tuteur-test`).
@@ -90,8 +100,8 @@ Pour utiliser le faux Google Sheets en local : dans la console du navigateur,
 
 ## Ajouter un chapitre
 
-1. Créer `js/chapters/<niveau>/<id>_nom.js` (copier `3e/c01_calcul_litteral.js` comme gabarit ;
-   les imports sont `../../engine.js` et `../../render.js`).
+1. Créer `js/chapters/<niveau>/<id>_nom.js` (copier `5e/v10_triangles.js` comme gabarit ;
+   les imports sont `../../engine.js`, `../../render.js` et `../commun.js` pour les figures).
 2. Dans `js/programme.js`, renseigner le nom du fichier sur l'entrée du chapitre.
 3. Ajouter le fichier à `CORE` dans `sw.js` et incrémenter `VERSION`.
 

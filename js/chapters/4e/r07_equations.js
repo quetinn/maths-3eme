@@ -69,9 +69,16 @@ export default {
   exercices: [
     {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Résous (donne x) :',
-      generer() { const b = randInt(1, 9), sol = randInt(-6, 9); return { enonce: `$x + ${b} = ${sol + b}$`, reponse: sol, validation: 'nombre' }; },
+      generer() { const b = randInt(1, 9), sol = randInt(-6, 9); return { enonce: `$x + ${b} = ${sol + b}$`, reponse: sol, validation: 'nombre', _v: { b, sol } }; },
       indices: ['Enlève le nombre des deux côtés.', '$x = (\\text{membre de droite}) - (\\text{nombre})$.', 'Attention au signe du résultat.'],
-      correction_detaillee: () => `<p>On soustrait le nombre des deux côtés pour isoler $x$.</p>`,
+      correction_etapes(st) {
+        const { b, sol } = st._v;
+        return [
+          `Pour isoler $x$, on soustrait $${b}$ <strong>des deux côtés</strong> : $x + ${b} - ${b} = ${sol + b} - ${b}$.`,
+          `$x = ${sol}$.`,
+          `Vérification : $${sol} + ${b} = ${sol + b}$ ✓`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'complete', consigne: 'Complète la résolution :',
@@ -81,15 +88,22 @@ export default {
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Résous (donne x) :',
-      generer() { const a = randInt(2, 6), b = randIntNonZero(-9, 9), sol = randInt(-5, 6); return { enonce: `$${a}x + ${b < 0 ? '(' + b + ')' : b} = ${a * sol + b}$`, reponse: sol, validation: 'nombre' }; },
+      generer() { const a = randInt(2, 6), b = randIntNonZero(-9, 9), sol = randInt(-5, 6); return { enonce: `$${a}x + ${b < 0 ? '(' + b + ')' : b} = ${a * sol + b}$`, reponse: sol, validation: 'nombre', _v: { a, b, sol } }; },
       indices: ['Enlève le nombre des deux côtés.', 'Tu obtiens $ax = $ quelque chose.', 'Divise par $a$.'],
-      correction_detaillee: () => `<p>On isole $ax$, puis on divise par $a$.</p>`,
+      correction_etapes(st) {
+        const { a, b, sol } = st._v, c = a * sol + b, p = (n) => (n < 0 ? `(${n})` : n);
+        return [
+          `On enlève $${p(b)}$ des deux côtés : $${a}x = ${c} - ${p(b)}$.`,
+          `$${a}x = ${a * sol}$.`,
+          `On divise les deux côtés par $${a}$ : $x = \\dfrac{${a * sol}}{${a}} = ${sol}$. Vérification : $${a} \\times ${p(sol)} + ${p(b)} = ${c}$ ✓`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'ordonner_etapes', consigne: 'Remets dans l\'ordre la résolution :',
       generer() { const a = randInt(2, 6), sol = randInt(2, 8), b = randInt(1, 9), c = a * sol + b; return { etapes: [`On part de $${a}x + ${b} = ${c}$`, `On enlève $${b}$ des deux côtés : $${a}x = ${c - b}$`, `On divise par $${a}$ : $x = ${sol}$`, `Vérification : $${a} \\times ${sol} + ${b} = ${c}$ ✓`] }; },
       indices: ['On isole le terme en $x$ avant de diviser.', 'On divise seulement à la fin.', 'La vérification est la dernière étape.'],
-      correction_detaillee: () => `<p>Ordre : équation → enlever le nombre → diviser → vérifier.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : équation → enlever le nombre → diviser → vérifier.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Mise en équation — trouve le nombre :',
@@ -99,9 +113,16 @@ export default {
     },
     {
       id: 'e06', niveau: 3, type: 'vrai_faux', consigne: 'La valeur proposée est-elle solution ?',
-      generer() { const a = randInt(2, 5), b = randIntNonZero(-6, 6), sol = randInt(-4, 6), c = a * sol + b; const test = Math.random() < 0.5 ? sol : sol + pick([1, -1, 2]); return { enonce: `$${a}x + ${b < 0 ? '(' + b + ')' : b} = ${c}$. La valeur $x = ${test}$ est-elle solution ?`, reponse: a * test + b === c }; },
+      generer() { const a = randInt(2, 5), b = randIntNonZero(-6, 6), sol = randInt(-4, 6), c = a * sol + b; const test = Math.random() < 0.5 ? sol : sol + pick([1, -1, 2]); return { enonce: `$${a}x + ${b < 0 ? '(' + b + ')' : b} = ${c}$. La valeur $x = ${test}$ est-elle solution ?`, reponse: a * test + b === c, _v: { a, b, c, sol, test } }; },
       indices: ['Remplace $x$ par la valeur et calcule le membre de gauche.', 'Compare-le au membre de droite.', 'Égaux → solution ; différents → non.'],
-      correction_detaillee: () => `<p>On remplace $x$ par la valeur et on vérifie l'égalité.</p>`,
+      correction_etapes(st) {
+        const { a, b, c, sol, test } = st._v, p = (n) => (n < 0 ? `(${n})` : n), g = a * test + b;
+        return [
+          `On remplace $x$ par $${test}$ dans le membre de gauche : $${a} \\times ${p(test)} + ${p(b)}$.`,
+          `$= ${a * test} + ${p(b)} = ${g}$, et le membre de droite vaut $${c}$.`,
+          g === c ? `Les deux membres sont égaux : $${test}$ <strong>est</strong> solution.` : `$${g} \\neq ${c}$ : $${test}$ <strong>n'est pas</strong> solution (la solution est $${sol}$).`,
+        ];
+      },
     },
   ],
 

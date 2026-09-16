@@ -130,19 +130,33 @@ export default {
       id: 'e01', niveau: 1, type: 'saisie', consigne: "Calcule l'hypoténuse :",
       generer() {
         const [a, b, c] = pick(TRIPLES), k = randInt(1, 3);
-        return { enonce: `Triangle rectangle en $A$, $AB=${a * k}$, $AC=${b * k}$. Calcule $BC$.`, reponse: c * k, validation: 'nombre', visuel: (h) => pythagoreFig(h, { ab: String(a * k), ac: String(b * k), bc: '?' }) };
+        return { enonce: `Triangle rectangle en $A$, $AB=${a * k}$, $AC=${b * k}$. Calcule $BC$.`, reponse: c * k, validation: 'nombre', visuel: (h) => pythagoreFig(h, { ab: String(a * k), ac: String(b * k), bc: '?' }), _v: { AB: a * k, AC: b * k, BC: c * k } };
       },
       indices: ['$BC^2 = AB^2 + AC^2$.', 'Additionne les carrés des deux côtés de l\'angle droit.', 'Prends la racine carrée de la somme.'],
-      correction_detaillee: () => `<p>$BC = \\sqrt{AB^2 + AC^2}$.</p>`,
+      correction_etapes(st) {
+        const { AB, AC, BC } = st._v;
+        return [
+          `Le triangle est rectangle en $A$ : l'hypoténuse est $[BC]$, donc $BC^2 = AB^2 + AC^2$.`,
+          `$BC^2 = ${AB}^2 + ${AC}^2 = ${AB * AB} + ${AC * AC} = ${AB * AB + AC * AC}$.`,
+          `$BC = \\sqrt{${AB * AB + AC * AC}} = ${BC}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Calcule le côté manquant :',
       generer() {
         const [a, b, c] = pick(TRIPLES), k = randInt(1, 3);
-        return { enonce: `Triangle rectangle en $A$, hypoténuse $BC=${c * k}$, $AB=${a * k}$. Calcule $AC$.`, reponse: b * k, validation: 'nombre', visuel: (h) => pythagoreFig(h, { ab: String(a * k), ac: '?', bc: String(c * k) }) };
+        return { enonce: `Triangle rectangle en $A$, hypoténuse $BC=${c * k}$, $AB=${a * k}$. Calcule $AC$.`, reponse: b * k, validation: 'nombre', visuel: (h) => pythagoreFig(h, { ab: String(a * k), ac: '?', bc: String(c * k) }), _v: { AB: a * k, AC: b * k, BC: c * k } };
       },
       indices: ["Ici on connaît l'hypoténuse : on soustrait.", '$AC^2 = BC^2 - AB^2$.', 'Prends la racine carrée du résultat.'],
-      correction_detaillee: () => `<p>$AC = \\sqrt{BC^2 - AB^2}$.</p>`,
+      correction_etapes(st) {
+        const { AB, AC, BC } = st._v;
+        return [
+          `$AC$ est un côté de l'angle droit : on <strong>soustrait</strong> les carrés. $AC^2 = BC^2 - AB^2$.`,
+          `$AC^2 = ${BC}^2 - ${AB}^2 = ${BC * BC} - ${AB * AB} = ${BC * BC - AB * AB}$.`,
+          `$AC = \\sqrt{${BC * BC - AB * AB}} = ${AC}$.`,
+        ];
+      },
     },
 
     // ----- Niveau 2 : Application -----
@@ -150,10 +164,17 @@ export default {
       id: 'e03', niveau: 2, type: 'saisie', consigne: "Calcule l'hypoténuse (arrondi au dixième) :",
       generer() {
         const a = randInt(3, 9), b = randInt(3, 9);
-        return { enonce: `Triangle rectangle en $A$, $AB=${a}$, $AC=${b}$. Calcule $BC$ (au dixième).`, reponse: round1(Math.sqrt(a * a + b * b)), validation: 'nombre', tolerance: 0.05, visuel: (h) => pythagoreFig(h, { ab: String(a), ac: String(b), bc: '?' }) };
+        return { enonce: `Triangle rectangle en $A$, $AB=${a}$, $AC=${b}$. Calcule $BC$ (au dixième).`, reponse: round1(Math.sqrt(a * a + b * b)), validation: 'nombre', tolerance: 0.05, visuel: (h) => pythagoreFig(h, { ab: String(a), ac: String(b), bc: '?' }), _v: { a, b } };
       },
       indices: ['$BC^2 = AB^2 + AC^2$.', 'La racine carrée n\'est pas toujours entière.', 'Arrondis le résultat au dixième.'],
-      correction_detaillee: () => `<p>$BC = \\sqrt{AB^2 + AC^2}$, puis on arrondit au dixième.</p>`,
+      correction_etapes(st) {
+        const { a, b } = st._v, s = a * a + b * b;
+        return [
+          `$BC^2 = AB^2 + AC^2 = ${a}^2 + ${b}^2 = ${a * a} + ${b * b} = ${s}$.`,
+          `$BC = \\sqrt{${s}} \\approx ${String(Math.round(Math.sqrt(s) * 1000) / 1000).replace('.', '{,}')}$.`,
+          `Arrondi au dixième : $BC \\approx ${String(round1(Math.sqrt(s))).replace('.', '{,}')}$.`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'vrai_faux', consigne: 'Réciproque — ce triangle est-il rectangle ?',
@@ -161,10 +182,19 @@ export default {
         const [a, b, c0] = pick(TRIPLES);
         const estRect = Math.random() < 0.5;
         const c = estRect ? c0 : c0 + pick([1, 2, 3]);
-        return { enonce: `Un triangle a pour côtés $${a}$, $${b}$ et $${c}$ (le plus grand). Est-il rectangle ?`, reponse: (c * c === a * a + b * b) };
+        return { enonce: `Un triangle a pour côtés $${a}$, $${b}$ et $${c}$ (le plus grand). Est-il rectangle ?`, reponse: (c * c === a * a + b * b), _v: { a, b, c } };
       },
       indices: ['Compare le carré du plus grand côté à la somme des carrés des deux autres.', 'Si $c^2 = a^2 + b^2$ : le triangle est rectangle.', 'Sinon : il ne l\'est pas.'],
-      correction_detaillee: () => `<p>On teste l'égalité de Pythagore avec le plus grand côté comme hypoténuse.</p>`,
+      correction_etapes(st) {
+        const { a, b, c } = st._v, egal = c * c === a * a + b * b;
+        return [
+          `Le plus grand côté est $${c}$ : on calcule $${c}^2 = ${c * c}$.`,
+          `Puis $${a}^2 + ${b}^2 = ${a * a} + ${b * b} = ${a * a + b * b}$.`,
+          egal
+            ? `Les deux résultats sont égaux : d'après la réciproque de Pythagore, le triangle <strong>est rectangle</strong>.`
+            : `$${c * c} \\neq ${a * a + b * b}$ : le triangle <strong>n'est pas rectangle</strong>.`,
+        ];
+      },
     },
 
     // ----- Niveau 3 : Défi -----
@@ -191,10 +221,18 @@ export default {
         const estRect = Math.random() < 0.5;
         const c = estRect ? c0 : c0 + pick([1, 2]);
         const choix = ['le triangle est rectangle', 'le triangle n\'est pas rectangle'];
-        return { enonce: `Côtés $${a}$, $${b}$, $${c}$. On compare : $${c}^2 = ${c * c}$ et $${a}^2 + ${b}^2 = ${a * a + b * b}$. Conclusion ?`, choix, correct: (c * c === a * a + b * b) ? 0 : 1 };
+        return { enonce: `Côtés $${a}$, $${b}$, $${c}$. On compare : $${c}^2 = ${c * c}$ et $${a}^2 + ${b}^2 = ${a * a + b * b}$. Conclusion ?`, choix, correct: (c * c === a * a + b * b) ? 0 : 1, _v: { a, b, c } };
       },
       indices: ['Si les deux carrés sont égaux : rectangle.', 'Sinon : pas rectangle.', 'C\'est la réciproque de Pythagore.'],
-      correction_detaillee: () => `<p>Égalité vérifiée ⇒ rectangle (réciproque) ; sinon ⇒ non rectangle.</p>`,
+      correction_etapes(st) {
+        const { a, b, c } = st._v, egal = c * c === a * a + b * b;
+        return [
+          `On compare $${c}^2 = ${c * c}$ et $${a}^2 + ${b}^2 = ${a * a + b * b}$.`,
+          egal
+            ? `Il y a égalité : d'après la réciproque du théorème de Pythagore, le triangle est rectangle (et son hypoténuse est le côté de longueur $${c}$).`
+            : `Il n'y a pas égalité ($${c * c} \\neq ${a * a + b * b}$) : le triangle n'est pas rectangle.`,
+        ];
+      },
     },
 
     // ----- Niveau 1 : Compléter le calcul -----
@@ -237,7 +275,7 @@ export default {
         };
       },
       indices: ['On repère d\'abord l\'hypoténuse.', 'On écrit la relation avant de remplacer.', 'La racine carrée vient en dernier.'],
-      correction_detaillee: () => `<p>Ordre : repérer l'hypoténuse → écrire Pythagore → remplacer → racine carrée.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : repérer l'hypoténuse → écrire le théorème → remplacer par les valeurs → racine carrée.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

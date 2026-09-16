@@ -7,7 +7,7 @@
 //  échantillonnage), `reponseTex` sert à l'affichage de la correction.
 // =====================================================================
 
-import { randInt, randIntNonZero, signed, coef, gcd, pick } from '../../engine.js';
+import { randInt, randIntNonZero, signed, coef, gcd } from '../../engine.js';
 
 export default {
   id: 'c01',
@@ -323,8 +323,8 @@ export default {
         'On calcule les produits avant de réduire.',
         'On réduit, puis on écrit le résultat final ordonné.',
       ],
-      correction_detaillee: () =>
-        `<p>Ordre correct : distributivité → calcul des produits → réduction → résultat.</p>`,
+      correction_detaillee: (st) =>
+        `<p>Ordre correct : distributivité → calcul des produits → réduction → résultat.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
 
     // ----- Niveau 1 : Compléter le calcul -----

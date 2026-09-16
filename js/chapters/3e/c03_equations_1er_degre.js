@@ -48,19 +48,33 @@ export default {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Résous l\'équation (donne x) :',
       generer() {
         const b = randIntNonZero(-9, 9), sol = randInt(-9, 9);
-        return { enonce: `$x + ${b < 0 ? '(' + b + ')' : b} = ${sol + b}$`, reponse: sol, validation: 'nombre' };
+        return { enonce: `$x + ${b < 0 ? '(' + b + ')' : b} = ${sol + b}$`, reponse: sol, validation: 'nombre', _v: { b, sol } };
       },
       indices: ['Isole $x$ en enlevant le nombre des deux côtés.', 'Ce qui s\'ajoute d\'un côté se soustrait de l\'autre.', '$x = \\text{(membre de droite)} - \\text{(nombre)}$.'],
-      correction_detaillee: () => `<p>On soustrait le nombre des deux côtés pour isoler $x$.</p>`,
+      correction_etapes(st) {
+        const { b, sol } = st._v, p = (n) => (n < 0 ? `(${n})` : n);
+        return [
+          `On enlève $${p(b)}$ des deux côtés : $x + ${p(b)} - ${p(b)} = ${sol + b} - ${p(b)}$.`,
+          `$x = ${sol}$.`,
+          `Vérification : $${sol} + ${p(b)} = ${sol + b}$ ✓`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Résous l\'équation (donne x) :',
       generer() {
         const a = randIntNonZero(2, 6), sol = randInt(-6, 6);
-        return { enonce: `$${a}x = ${a * sol}$`, reponse: sol, validation: 'nombre' };
+        return { enonce: `$${a}x = ${a * sol}$`, reponse: sol, validation: 'nombre', _v: { a, sol } };
       },
       indices: ['Le coefficient devant $x$ se « défait » par une division.', 'Divise les deux côtés par ce coefficient.', '$x = \\dfrac{\\text{membre de droite}}{\\text{coefficient}}$.'],
-      correction_detaillee: () => `<p>On divise les deux membres par le coefficient de $x$.</p>`,
+      correction_etapes(st) {
+        const { a, sol } = st._v;
+        return [
+          `Le coefficient de $x$ est $${a}$ : on divise les deux membres par $${a}$.`,
+          `$x = \\dfrac{${a * sol}}{${a}} = ${sol}$.`,
+          `Vérification : $${a} \\times ${sol < 0 ? `(${sol})` : sol} = ${a * sol}$ ✓`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Résous l\'équation (donne x) :',
@@ -77,10 +91,17 @@ export default {
         let a = randIntNonZero(2, 5), c = randIntNonZero(-4, 4);
         while (c === a) c = randIntNonZero(-4, 4);
         const sol = randInt(-5, 5), b = randIntNonZero(-6, 6), d = a * sol + b - c * sol;
-        return { enonce: `$${linTeX(a, b)} = ${linTeX(c, d)}$`, reponse: sol, validation: 'nombre' };
+        return { enonce: `$${linTeX(a, b)} = ${linTeX(c, d)}$`, reponse: sol, validation: 'nombre', _v: { a, b, c, d, sol } };
       },
       indices: ['Regroupe les $x$ d\'un côté, les nombres de l\'autre.', 'Soustrais le terme en $x$ le plus petit aux deux membres.', 'Termine en divisant par le coefficient restant.'],
-      correction_detaillee: () => `<p>On déplace les $x$ d'un côté et les nombres de l'autre, puis on divise.</p>`,
+      correction_etapes(st) {
+        const { a, b, c, d, sol } = st._v, p = (n) => (n < 0 ? `(${n})` : n);
+        return [
+          `On enlève $${c}x$ des deux côtés : $${linTeX(a - c, b)} = ${d}$.`,
+          `On enlève $${p(b)}$ des deux côtés : $${a - c}x = ${d} - ${p(b)} = ${d - b}$.`,
+          `On divise par $${a - c}$ : $x = \\dfrac{${d - b}}{${a - c}} = ${sol}$.`,
+        ];
+      },
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Résous (développe d\'abord) :',
@@ -105,10 +126,17 @@ export default {
         const a = randInt(2, 5), p = randIntNonZero(-4, 4), sol = randInt(-5, 5);
         let c = randIntNonZero(-3, 3); while (c === a) c = randIntNonZero(-3, 3);
         const d = a * sol + a * p - c * sol;
-        return { enonce: `$${a}(x ${p >= 0 ? '+ ' + p : '- ' + -p}) = ${linTeX(c, d)}$`, reponse: sol, validation: 'nombre' };
+        return { enonce: `$${a}(x ${p >= 0 ? '+ ' + p : '- ' + -p}) = ${linTeX(c, d)}$`, reponse: sol, validation: 'nombre', _v: { a, p, c, d, sol } };
       },
       indices: ['Développe la parenthèse.', 'Regroupe les $x$ d\'un côté.', 'Isole et divise.'],
-      correction_detaillee: () => `<p>On développe, on regroupe les $x$, puis on isole $x$.</p>`,
+      correction_etapes(st) {
+        const { a, p, c, d, sol } = st._v, q = (n) => (n < 0 ? `(${n})` : n);
+        return [
+          `On développe le membre de gauche : $${a}(x ${p >= 0 ? '+ ' + p : '- ' + -p}) = ${linTeX(a, a * p)}$.`,
+          `On enlève $${c}x$ des deux côtés : $${linTeX(a - c, a * p)} = ${d}$.`,
+          `On enlève $${q(a * p)}$ : $${a - c}x = ${d - a * p}$, puis on divise par $${a - c}$ : $x = ${sol}$.`,
+        ];
+      },
     },
 
     // ----- Niveau 1 : Compléter la résolution -----
@@ -152,7 +180,7 @@ export default {
         };
       },
       indices: ['On isole d\'abord le terme en $x$.', 'On divise seulement à la fin.', 'La vérification se fait en tout dernier.'],
-      correction_detaillee: () => `<p>Ordre : équation de départ → retirer le nombre → diviser → vérifier.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : équation de départ → retirer le nombre → diviser → vérifier.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

@@ -72,21 +72,49 @@ export default {
   exercices: [
     {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Calcule la somme :',
-      generer() { const a = randIntNonZero(-9, 9), b = randIntNonZero(-9, 9); return { enonce: `$${par(a)} + ${par(b)}$`, reponse: a + b, validation: 'nombre' }; },
+      generer() { const a = randIntNonZero(-9, 9), b = randIntNonZero(-9, 9); return { enonce: `$${par(a)} + ${par(b)}$`, reponse: a + b, validation: 'nombre', _v: { a, b } }; },
       indices: ['Mêmes signes : on additionne et on garde le signe.', 'Signes différents : on soustrait les distances à zéro.', 'Le résultat prend le signe du plus « grand ».'],
-      correction_detaillee: () => `<p>On compare les signes, puis on additionne ou on soustrait les distances à zéro.</p>`,
+      correction_etapes(st) {
+        const { a, b } = st._v, da = Math.abs(a), db = Math.abs(b), s = a + b;
+        if ((a > 0) === (b > 0)) {
+          return [
+            `$${par(a)}$ et $${par(b)}$ ont le <strong>même signe</strong> : on additionne les distances à zéro.`,
+            `$${da} + ${db} = ${da + db}$, et on garde le signe ${a > 0 ? 'positif' : 'négatif'}.`,
+            `$${par(a)} + ${par(b)} = ${s}$.`,
+          ];
+        }
+        return [
+          `Les signes sont <strong>différents</strong> : on soustrait les distances à zéro.`,
+          `$${Math.max(da, db)} - ${Math.min(da, db)} = ${Math.abs(s)}$.`,
+          s === 0 ? `Les deux nombres sont opposés : la somme vaut $0$.` : `On garde le signe de $${da > db ? a : b}$ (le plus éloigné de zéro) : $${par(a)} + ${par(b)} = ${s}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Calcule la différence :',
-      generer() { const a = randIntNonZero(-9, 9), b = randIntNonZero(-9, 9); return { enonce: `$${par(a)} - ${par(b)}$`, reponse: a - b, validation: 'nombre' }; },
+      generer() { const a = randIntNonZero(-9, 9), b = randIntNonZero(-9, 9); return { enonce: `$${par(a)} - ${par(b)}$`, reponse: a - b, validation: 'nombre', _v: { a, b } }; },
       indices: ['Soustraire, c\'est ajouter l\'opposé.', '$a - (-b) = a + b$.', 'Réécris en addition, puis calcule.'],
-      correction_detaillee: () => `<p>On transforme la soustraction en addition de l'opposé, puis on calcule.</p>`,
+      correction_etapes(st) {
+        const { a, b } = st._v;
+        return [
+          `L'opposé de $${par(b)}$ est $${-b}$ : soustraire $${par(b)}$ revient à ajouter $${par(-b)}$.`,
+          `$${par(a)} - ${par(b)} = ${par(a)} + ${par(-b)}$.`,
+          `$${par(a)} + ${par(-b)} = ${a - b}$.`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Calcule le produit :',
-      generer() { const a = randIntNonZero(-9, 9), b = randIntNonZero(-8, 8); return { enonce: `$${par(a)} \\times ${par(b)}$`, reponse: a * b, validation: 'nombre' }; },
+      generer() { const a = randIntNonZero(-9, 9), b = randIntNonZero(-8, 8); return { enonce: `$${par(a)} \\times ${par(b)}$`, reponse: a * b, validation: 'nombre', _v: { a, b } }; },
       indices: ['Multiplie d\'abord les distances à zéro.', 'Mêmes signes → positif ; signes contraires → négatif.', 'Détermine le signe à la fin.'],
-      correction_detaillee: () => `<p>On multiplie les nombres puis on applique la règle des signes.</p>`,
+      correction_etapes(st) {
+        const { a, b } = st._v, negatifs = (a < 0 ? 1 : 0) + (b < 0 ? 1 : 0);
+        return [
+          `On multiplie les distances à zéro : $${Math.abs(a)} \\times ${Math.abs(b)} = ${Math.abs(a * b)}$.`,
+          `Il y a $${negatifs}$ facteur(s) négatif(s) : ${negatifs % 2 === 0 ? 'un nombre pair, le résultat est positif' : 'un nombre impair, le résultat est négatif'}.`,
+          `$${par(a)} \\times ${par(b)} = ${a * b}$.`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'qcm', consigne: 'Choisis le bon signe du résultat :',
@@ -96,10 +124,16 @@ export default {
           { e: '(8) \\div (-2)', s: '-' }, { e: '(-15) \\div (-5)', s: '+' },
         ];
         const c = pick(cas); const choix = ['positif (+)', 'négatif (−)'];
-        return { enonce: `Quel est le signe de $${c.e}$ ?`, choix, correct: c.s === '+' ? 0 : 1 };
+        return { enonce: `Quel est le signe de $${c.e}$ ?`, choix, correct: c.s === '+' ? 0 : 1, ordre_fixe: true, _v: { c } };
       },
       indices: ['Compte le nombre de signes « − ».', 'Pair de « − » → positif.', 'Impair de « − » → négatif.'],
-      correction_detaillee: () => `<p>Le signe dépend de la parité du nombre de facteurs négatifs.</p>`,
+      correction_etapes(st) {
+        const { c } = st._v, nb = (c.e.match(/\(-/g) || []).length;
+        return [
+          `Dans $${c.e}$, il y a $${nb}$ nombre(s) négatif(s).`,
+          nb % 2 === 0 ? `Un nombre pair de facteurs négatifs : le résultat est <strong>positif</strong>.` : `Un nombre impair de facteurs négatifs : le résultat est <strong>négatif</strong>.`,
+        ];
+      },
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Calcule (respecte les priorités) :',
@@ -115,9 +149,21 @@ export default {
     },
     {
       id: 'e06', niveau: 3, type: 'saisie', consigne: 'Calcule le quotient :',
-      generer() { const q = randIntNonZero(-9, 9), b = randIntNonZero(-6, 6); const a = q * b; return { enonce: `$${par(a)} \\div ${par(b)}$`, reponse: q, validation: 'nombre' }; },
+      generer() {
+        const q = randIntNonZero(-9, 9);
+        let b; do { b = randIntNonZero(-6, 6); } while (Math.abs(b) === 1); // |b| = 1 : la division serait l'énoncé recopié
+        const a = q * b;
+        return { enonce: `$${par(a)} \\div ${par(b)}$`, reponse: q, validation: 'nombre', _v: { a, b, q } };
+      },
       indices: ['Divise les distances à zéro.', 'Applique la règle des signes (comme pour le produit).', 'Mêmes signes → positif.'],
-      correction_detaillee: () => `<p>On divise les nombres puis on applique la règle des signes.</p>`,
+      correction_etapes(st) {
+        const { a, b, q } = st._v, negatifs = (a < 0 ? 1 : 0) + (b < 0 ? 1 : 0);
+        return [
+          `On divise les distances à zéro : $${Math.abs(a)} \\div ${Math.abs(b)} = ${Math.abs(q)}$.`,
+          `Il y a $${negatifs}$ nombre(s) négatif(s) : le quotient est ${negatifs % 2 === 0 ? 'positif' : 'négatif'}.`,
+          `$${par(a)} \\div ${par(b)} = ${q}$.`,
+        ];
+      },
     },
     {
       id: 'e07', niveau: 1, type: 'complete', consigne: 'Complète le calcul (soustraction → addition de l\'opposé) :',
@@ -129,7 +175,7 @@ export default {
       id: 'e08', niveau: 2, type: 'ordonner_etapes', consigne: 'Remets dans l\'ordre le calcul avec priorités :',
       generer() { const a = randIntNonZero(-7, 7), b = randIntNonZero(-5, 5), c = randIntNonZero(-5, 5); return { etapes: [`Repérer la priorité : la multiplication avant l'addition`, `Calculer le produit : $${par(b)} \\times ${par(c)} = ${b * c}$`, `Effectuer l'addition : $${par(a)} + ${par(b * c)} = ${a + b * c}$`] }; },
       indices: ['On repère d\'abord l\'opération prioritaire.', 'On calcule la multiplication avant l\'addition.', 'On termine par l\'addition.'],
-      correction_detaillee: () => `<p>Ordre : repérer la priorité → calculer le produit → effectuer l'addition.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : repérer la priorité → calculer le produit → effectuer l'addition.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

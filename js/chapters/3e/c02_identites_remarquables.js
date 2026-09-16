@@ -63,10 +63,17 @@ export default {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Développe avec l\'identité remarquable :',
       generer() {
         const a = randInt(1, 9);
-        return { enonce: `$(x - ${a})^2$`, reponse: `x^2 - ${2 * a}*x + ${a * a}`, reponseTex: `x^2 - ${2 * a}x + ${a * a}`, validation: 'expression' };
+        return { enonce: `$(x - ${a})^2$`, reponse: `x^2 - ${2 * a}*x + ${a * a}`, reponseTex: `x^2 - ${2 * a}x + ${a * a}`, validation: 'expression', _v: { a } };
       },
       indices: ['$(a-b)^2 = a^2 - 2ab + b^2$.', 'Le terme du milieu est négatif, mais le dernier reste positif.', 'Le carré d\'un nombre est toujours positif.'],
-      correction_detaillee: () => `<p>$(x-b)^2 = x^2 - 2bx + b^2$. Attention : $+b^2$ est positif.</p>`,
+      correction_etapes(st) {
+        const { a } = st._v;
+        return [
+          `On reconnaît $(a - b)^2 = a^2 - 2ab + b^2$ avec $a = x$ et $b = ${a}$.`,
+          `Double produit : $2 \\times x \\times ${a} = ${2 * a}x$ ; carré : $${a}^2 = ${a * a}$.`,
+          `$(x - ${a})^2 = x^2 - ${2 * a}x + ${a * a}$ — le dernier terme est bien <strong>positif</strong>.`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Développe (somme × différence) :',
@@ -158,7 +165,7 @@ export default {
         };
       },
       indices: ['On identifie toujours $a$ et $b$ en premier.', 'On applique ensuite la formule sans calculer.', 'On termine par les calculs.'],
-      correction_detaillee: () => `<p>Ordre : reconnaître l'identité → appliquer la formule → calculer.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : reconnaître l'identité → appliquer la formule → calculer.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

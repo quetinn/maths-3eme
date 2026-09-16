@@ -4,7 +4,7 @@
 //  Figure interactive : rectangle réglable (aire + périmètre).
 // =====================================================================
 
-import { randInt, pick } from '../../engine.js';
+import { randInt } from '../../engine.js';
 
 const r1 = (x) => Math.round(x * 10) / 10;
 
@@ -64,9 +64,12 @@ export default {
   exercices: [
     {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Calcule l\'aire du rectangle :',
-      generer() { const L = randInt(3, 12), w = randInt(2, 9); return { enonce: `Rectangle de longueur $${L}$ cm et largeur $${w}$ cm. Aire ?`, reponse: L * w, validation: 'nombre' }; },
+      generer() { const L = randInt(3, 12), w = randInt(2, 9); return { enonce: `Rectangle de longueur $${L}$ cm et largeur $${w}$ cm. Aire ?`, reponse: L * w, validation: 'nombre', _v: { L, w } }; },
       indices: ['$A = L \\times \\ell$.', 'Multiplie la longueur par la largeur.', 'Le résultat est en cm².'],
-      correction_detaillee: () => `<p>$A = L \\times \\ell$.</p>`,
+      correction_etapes(st) {
+        const { L, w } = st._v;
+        return [`Aire d'un rectangle : $\\mathcal{A} = L \\times \\ell$.`, `$\\mathcal{A} = ${L} \\times ${w} = ${L * w}$ cm².`];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'complete', consigne: 'Complète le calcul du périmètre :',
@@ -76,15 +79,22 @@ export default {
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Calcule l\'aire du triangle :',
-      generer() { const b = 2 * randInt(2, 7), h = randInt(3, 10); return { enonce: `Triangle de base $${b}$ cm et hauteur $${h}$ cm. Aire ?`, reponse: (b * h) / 2, validation: 'nombre' }; },
+      generer() { const b = 2 * randInt(2, 7), h = randInt(3, 10); return { enonce: `Triangle de base $${b}$ cm et hauteur $${h}$ cm. Aire ?`, reponse: (b * h) / 2, validation: 'nombre', _v: { b, h } }; },
       indices: ['$A = \\dfrac{b \\times h}{2}$.', 'Multiplie la base par la hauteur.', 'Divise par 2.'],
-      correction_detaillee: () => `<p>$A = \\dfrac{b \\times h}{2}$.</p>`,
+      correction_etapes(st) {
+        const { b, h } = st._v;
+        return [
+          `Aire d'un triangle : $\\mathcal{A} = \\dfrac{b \\times h}{2}$.`,
+          `$${b} \\times ${h} = ${b * h}$.`,
+          `$\\mathcal{A} = ${b * h} \\div 2 = ${(b * h) / 2}$ cm².`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'ordonner_etapes', consigne: 'Remets dans l\'ordre le calcul du volume d\'un pavé :',
       generer() { const L = randInt(3, 8), w = randInt(2, 6), h = randInt(2, 6); return { etapes: [`Reconnaître un pavé droit : $V = L \\times \\ell \\times h$`, `Multiplier deux dimensions : $${L} \\times ${w} = ${L * w}$`, `Multiplier par la hauteur : $${L * w} \\times ${h} = ${L * w * h}$`] }; },
       indices: ['On choisit la bonne formule.', 'On multiplie les dimensions une par une.', 'On obtient le volume.'],
-      correction_detaillee: () => `<p>Ordre : formule du pavé → multiplier deux dimensions → multiplier par la hauteur.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : formule du pavé → multiplier deux dimensions → multiplier par la hauteur.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Calcule l\'aire du disque (arrondi au dixième, π ≈ 3,14) :',
@@ -94,9 +104,16 @@ export default {
     },
     {
       id: 'e06', niveau: 3, type: 'saisie', consigne: 'Calcule le volume du pavé droit :',
-      generer() { const L = randInt(3, 9), w = randInt(2, 7), h = randInt(2, 8); return { enonce: `Pavé droit $${L} \\times ${w} \\times ${h}$ cm. Volume ?`, reponse: L * w * h, validation: 'nombre' }; },
+      generer() { const L = randInt(3, 9), w = randInt(2, 7), h = randInt(2, 8); return { enonce: `Pavé droit $${L} \\times ${w} \\times ${h}$ cm. Volume ?`, reponse: L * w * h, validation: 'nombre', _v: { L, w, h } }; },
       indices: ['$V = L \\times \\ell \\times h$.', 'Multiplie les trois dimensions.', 'Le résultat est en cm³.'],
-      correction_detaillee: () => `<p>$V = L \\times \\ell \\times h$.</p>`,
+      correction_etapes(st) {
+        const { L, w, h } = st._v;
+        return [
+          `Volume d'un pavé droit : $V = L \\times \\ell \\times h$.`,
+          `$${L} \\times ${w} = ${L * w}$ (aire de la base), puis $${L * w} \\times ${h} = ${L * w * h}$.`,
+          `$V = ${L * w * h}$ cm³.`,
+        ];
+      },
     },
   ],
 

@@ -10,7 +10,7 @@
 // =====================================================================
 
 import { renderMath } from './render.js';
-import { mountExercise, mountQuiz, checkAnswer } from './engine.js';
+import { mountExercise, mountQuiz, checkAnswer, decouperTrous } from './engine.js';
 import { NIVEAUX, THEMES, CHAPTERS, chapterById, themeById, niveauById, chaptersOf } from './programme.js';
 import { ymd, maitrise, libelleMaitrise, erreursChapitre, chapitresFragiles, erreursParTheme, progressionNiveau, progressionTheme, resumePourTuteur, exosReussis, serieActuelle, aCommence } from './stats.js';
 import { creerSynchro, appeler, enLigneDisponible, Tuteur } from './cloud.js';
@@ -1103,7 +1103,7 @@ function answerOf(exo, s) {
   return s.reponseTex || s.reponse;
 }
 function enonceForPrint(exo, s) {
-  if (exo.type === 'complete') return (s.enonce_complete || s.enonce).replace(/\{\d+\}/g, '\\,\\underline{\\quad}\\,');
+  if (exo.type === 'complete') return decouperTrous(s.enonce_complete || s.enonce).map((p, i) => (i % 2 ? ' ______ ' : p)).join('');
   if (exo.type === 'ordonner_etapes') return '<ul>' + s.etapes.map((e) => `<li>${e}</li>`).join('') + '</ul>';
   return s.enonce || '';
 }

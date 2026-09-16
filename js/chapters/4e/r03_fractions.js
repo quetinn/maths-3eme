@@ -68,30 +68,58 @@ export default {
   exercices: [
     {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Additionne (même dénominateur) — fraction ou décimal :',
-      generer() { const d = randInt(3, 9), a = randInt(1, d - 1), c = randInt(1, d - 1); return { enonce: `$\\dfrac{${a}}{${d}} + \\dfrac{${c}}{${d}}$`, reponse: (a + c) / d, validation: 'nombre', tolerance: 0.01, reponseTex: fracTeX(a + c, d) }; },
+      generer() { const d = randInt(3, 9), a = randInt(1, d - 1), c = randInt(1, d - 1); return { enonce: `$\\dfrac{${a}}{${d}} + \\dfrac{${c}}{${d}}$`, reponse: (a + c) / d, validation: 'nombre', tolerance: 0.01, reponseTex: fracTeX(a + c, d), _v: { a, c, d } }; },
       indices: ['Même dénominateur : on garde le dénominateur.', 'On additionne seulement les numérateurs.', 'On simplifie si possible.'],
-      correction_detaillee: (s) => `<p>$\\dfrac{a}{d} + \\dfrac{c}{d} = \\dfrac{a+c}{d}$, soit $${s.reponseTex}$.</p>`,
+      correction_etapes(st) {
+        const { a, c, d } = st._v, simple = fracTeX(a + c, d);
+        return [
+          `Les deux fractions ont le même dénominateur $${d}$ : on garde ce dénominateur.`,
+          `On additionne les numérateurs : $${a} + ${c} = ${a + c}$, donc $\\dfrac{${a}}{${d}} + \\dfrac{${c}}{${d}} = \\dfrac{${a + c}}{${d}}$.`,
+          simple === `\\dfrac{${a + c}}{${d}}` ? `Cette fraction ne se simplifie pas.` : `On simplifie : $\\dfrac{${a + c}}{${d}} = ${simple}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Soustrais (même dénominateur) — fraction ou décimal :',
-      generer() { const d = randInt(3, 9), a = randInt(2, d - 1), c = randInt(1, a); return { enonce: `$\\dfrac{${a}}{${d}} - \\dfrac{${c}}{${d}}$`, reponse: (a - c) / d, validation: 'nombre', tolerance: 0.01, reponseTex: fracTeX(a - c, d) }; },
+      generer() { const d = randInt(3, 9), a = randInt(2, d - 1), c = randInt(1, a); return { enonce: `$\\dfrac{${a}}{${d}} - \\dfrac{${c}}{${d}}$`, reponse: (a - c) / d, validation: 'nombre', tolerance: 0.01, reponseTex: fracTeX(a - c, d), _v: { a, c, d } }; },
       indices: ['On garde le dénominateur commun.', 'On soustrait les numérateurs.', 'On simplifie si possible.'],
-      correction_detaillee: (s) => `<p>$\\dfrac{a}{d} - \\dfrac{c}{d} = \\dfrac{a-c}{d}$, soit $${s.reponseTex}$.</p>`,
+      correction_etapes(st) {
+        const { a, c, d } = st._v, simple = fracTeX(a - c, d);
+        return [
+          `Même dénominateur $${d}$ : on le garde.`,
+          `On soustrait les numérateurs : $${a} - ${c} = ${a - c}$, donc le résultat est $\\dfrac{${a - c}}{${d}}$.`,
+          simple === `\\dfrac{${a - c}}{${d}}` ? `Cette fraction ne se simplifie pas.` : `On simplifie : $\\dfrac{${a - c}}{${d}} = ${simple}$.`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Multiplie — fraction ou décimal :',
-      generer() { const a = randInt(1, 5), b = randInt(2, 6), c = randInt(1, 5), d = randInt(2, 6); return { enonce: `$\\dfrac{${a}}{${b}} \\times \\dfrac{${c}}{${d}}$`, reponse: (a * c) / (b * d), validation: 'nombre', tolerance: 0.01, reponseTex: fracTeX(a * c, b * d) }; },
+      generer() { const a = randInt(1, 5), b = randInt(2, 6), c = randInt(1, 5), d = randInt(2, 6); return { enonce: `$\\dfrac{${a}}{${b}} \\times \\dfrac{${c}}{${d}}$`, reponse: (a * c) / (b * d), validation: 'nombre', tolerance: 0.01, reponseTex: fracTeX(a * c, b * d), _v: { a, b, c, d } }; },
       indices: ['On multiplie les numérateurs entre eux.', 'On multiplie les dénominateurs entre eux.', 'On simplifie le résultat.'],
-      correction_detaillee: (s) => `<p>$\\dfrac{a}{b} \\times \\dfrac{c}{d} = \\dfrac{ac}{bd}$, soit $${s.reponseTex}$.</p>`,
+      correction_etapes(st) {
+        const { a, b, c, d } = st._v, simple = fracTeX(a * c, b * d);
+        return [
+          `Pas besoin de dénominateur commun pour multiplier.`,
+          `$\\dfrac{${a}}{${b}} \\times \\dfrac{${c}}{${d}} = \\dfrac{${a} \\times ${c}}{${b} \\times ${d}} = \\dfrac{${a * c}}{${b * d}}$.`,
+          simple === `\\dfrac{${a * c}}{${b * d}}` ? `Cette fraction est déjà irréductible.` : `On simplifie : $\\dfrac{${a * c}}{${b * d}} = ${simple}$.`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'qcm', consigne: 'Comment calcule-t-on une division de fractions ?',
       generer() {
-        const choix = ['on multiplie par l\'inverse de la 2ᵉ', 'on additionne les numérateurs', 'on divise les numérateurs entre eux', 'on garde le plus grand dénominateur'];
-        return { enonce: `$\\dfrac{a}{b} \\div \\dfrac{c}{d}$ est égal à :`, choix, correct: 0 };
+        let c, d; do { c = randInt(1, 6); d = randInt(2, 7); } while (c === d);
+        const choix = [`\\dfrac{a}{b} \\times \\dfrac{${d}}{${c}}`, `\\dfrac{a}{b} \\times \\dfrac{${c}}{${d}}`, `\\dfrac{a \\div ${c}}{b \\div ${d}}`, `\\dfrac{a + ${d}}{b + ${c}}`];
+        return { enonce: `$\\dfrac{a}{b} \\div \\dfrac{${c}}{${d}}$ est égal à :`, choix, correct: 0, _v: { c, d } };
       },
       indices: ['Diviser par une fraction = multiplier par son inverse.', 'L\'inverse de $\\dfrac{c}{d}$ est $\\dfrac{d}{c}$.', '$\\dfrac{a}{b} \\div \\dfrac{c}{d} = \\dfrac{a}{b} \\times \\dfrac{d}{c}$.'],
-      correction_detaillee: () => `<p>On multiplie par l'inverse de la seconde fraction.</p>`,
+      correction_etapes(st) {
+        const { c, d } = st._v;
+        return [
+          `L'inverse de $\\dfrac{${c}}{${d}}$ s'obtient en échangeant numérateur et dénominateur : $\\dfrac{${d}}{${c}}$.`,
+          `Diviser par une fraction, c'est multiplier par son inverse : $\\dfrac{a}{b} \\div \\dfrac{${c}}{${d}} = \\dfrac{a}{b} \\times \\dfrac{${d}}{${c}}$.`,
+        ];
+      },
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Additionne (dénominateurs différents) — fraction ou décimal :',
@@ -108,9 +136,16 @@ export default {
     },
     {
       id: 'e06', niveau: 3, type: 'saisie', consigne: 'Divise (multiplie par l\'inverse) — fraction ou décimal :',
-      generer() { const a = randInt(1, 5), b = randInt(2, 6), c = randInt(1, 5), d = randInt(2, 6); return { enonce: `$\\dfrac{${a}}{${b}} \\div \\dfrac{${c}}{${d}}$`, reponse: (a * d) / (b * c), validation: 'nombre', tolerance: 0.01, reponseTex: fracTeX(a * d, b * c) }; },
+      generer() { const a = randInt(1, 5), b = randInt(2, 6), c = randInt(1, 5), d = randInt(2, 6); return { enonce: `$\\dfrac{${a}}{${b}} \\div \\dfrac{${c}}{${d}}$`, reponse: (a * d) / (b * c), validation: 'nombre', tolerance: 0.01, reponseTex: fracTeX(a * d, b * c), _v: { a, b, c, d } }; },
       indices: ['Remplace la division par une multiplication par l\'inverse.', '$\\div \\dfrac{c}{d}$ devient $\\times \\dfrac{d}{c}$.', 'Puis multiplie comme d\'habitude.'],
-      correction_detaillee: (s) => `<p>$\\dfrac{a}{b} \\div \\dfrac{c}{d} = \\dfrac{a}{b} \\times \\dfrac{d}{c} = ${s.reponseTex}$.</p>`,
+      correction_etapes(st) {
+        const { a, b, c, d } = st._v, simple = fracTeX(a * d, b * c);
+        return [
+          `L'inverse de $\\dfrac{${c}}{${d}}$ est $\\dfrac{${d}}{${c}}$ : on remplace la division par une multiplication.`,
+          `$\\dfrac{${a}}{${b}} \\div \\dfrac{${c}}{${d}} = \\dfrac{${a}}{${b}} \\times \\dfrac{${d}}{${c}} = \\dfrac{${a * d}}{${b * c}}$.`,
+          simple === `\\dfrac{${a * d}}{${b * c}}` ? `Cette fraction est déjà irréductible.` : `On simplifie : $\\dfrac{${a * d}}{${b * c}} = ${simple}$.`,
+        ];
+      },
     },
     {
       id: 'e07', niveau: 1, type: 'complete', consigne: 'Complète l\'addition (même dénominateur) :',
@@ -122,7 +157,7 @@ export default {
       id: 'e08', niveau: 2, type: 'ordonner_etapes', consigne: 'Remets dans l\'ordre l\'addition de fractions de dénominateurs différents :',
       generer() { return { etapes: [`Trouver un dénominateur commun (ex. $\\dfrac{1}{2} + \\dfrac{1}{4}$ → 4)`, `Mettre les fractions au même dénominateur : $\\dfrac{2}{4} + \\dfrac{1}{4}$`, `Additionner les numérateurs : $\\dfrac{3}{4}$`, `Simplifier la fraction si possible`] }; },
       indices: ['On cherche d\'abord le dénominateur commun.', 'On transforme les fractions avant d\'additionner.', 'On simplifie en dernier.'],
-      correction_detaillee: () => `<p>Ordre : dénominateur commun → mettre au même dénominateur → additionner → simplifier.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : dénominateur commun → mettre au même dénominateur → additionner → simplifier.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

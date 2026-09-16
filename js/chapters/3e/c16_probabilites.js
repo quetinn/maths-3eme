@@ -135,10 +135,17 @@ export default {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Probabilité avec un dé (fraction ou décimal) :',
       generer() {
         const n = randInt(1, 6);
-        return { enonce: `On lance un dé équilibré à 6 faces. Quelle est la probabilité d'obtenir le $${n}$ ?`, reponse: 1 / 6, validation: 'nombre', tolerance: 0.01, reponseTex: '\\dfrac{1}{6}' };
+        return { enonce: `On lance un dé équilibré à 6 faces. Quelle est la probabilité d'obtenir le $${n}$ ?`, reponse: 1 / 6, validation: 'nombre', tolerance: 0.01, reponseTex: '\\dfrac{1}{6}', _v: { n } };
       },
       indices: ['Il y a 6 issues équiprobables.', 'Une seule réalise l\'événement.', '$P = \\dfrac{1}{6}$.'],
-      correction_detaillee: () => `<p>$P = \\dfrac{1}{6} \\approx 0{,}17$.</p>`,
+      correction_etapes(st) {
+        const { n } = st._v;
+        return [
+          `Le dé est équilibré : les $6$ faces ont la même probabilité (cas possibles $= 6$).`,
+          `Une seule face porte le $${n}$ (cas favorables $= 1$).`,
+          `$P = \\dfrac{1}{6} \\approx 0{,}17$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Probabilité avec une urne (fraction ou décimal) :',
@@ -153,10 +160,17 @@ export default {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Probabilité de l\'événement contraire (décimal ou fraction) :',
       generer() {
         const n = pick([4, 5, 8, 10]), k = randInt(1, n - 1);
-        return { enonce: `La probabilité de gagner à un jeu est $\\dfrac{${k}}{${n}}$. Quelle est la probabilité de NE PAS gagner ?`, reponse: 1 - k / n, validation: 'nombre', tolerance: 0.01, reponseTex: `\\dfrac{${n - k}}{${n}}` };
+        return { enonce: `La probabilité de gagner à un jeu est $\\dfrac{${k}}{${n}}$. Quelle est la probabilité de NE PAS gagner ?`, reponse: 1 - k / n, validation: 'nombre', tolerance: 0.01, reponseTex: `\\dfrac{${n - k}}{${n}}`, _v: { n, k } };
       },
       indices: ['$P(\\overline{A}) = 1 - P(A)$.', `Calcule $1 - \\dfrac{k}{n}$.`, 'Mets au même dénominateur.'],
-      correction_detaillee: () => `<p>$P(\\overline A) = 1 - P(A)$.</p>`,
+      correction_etapes(st) {
+        const { n, k } = st._v;
+        return [
+          `« Ne pas gagner » est l'événement contraire de « gagner » : $P(\\overline A) = 1 - P(A)$.`,
+          `$1 = \\dfrac{${n}}{${n}}$, donc $P(\\overline A) = \\dfrac{${n}}{${n}} - \\dfrac{${k}}{${n}} = \\dfrac{${n - k}}{${n}}$.`,
+          `Soit environ $${String(Math.round((1 - k / n) * 100) / 100).replace('.', '{,}')}$.`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'qcm', consigne: 'Choisis la bonne réponse :',
@@ -167,10 +181,16 @@ export default {
           { e: "Un événement impossible a pour probabilité :", good: '0', ch: ['0', '1', '\\dfrac12', '-1'] },
         ];
         const c = pick(cas);
-        return { enonce: c.e, choix: c.ch, correct: c.ch.indexOf(c.good) };
+        return { enonce: c.e, choix: c.ch, correct: c.ch.indexOf(c.good), _v: { e: c.e, good: c.good } };
       },
       indices: ['Une probabilité est comprise entre 0 et 1.', '0 = impossible, 1 = certain.', 'Une pièce : 2 issues équiprobables.'],
-      correction_detaillee: () => `<p>$P=0$ : impossible ; $P=1$ : certain ; pièce équilibrée : $P=\\dfrac12$.</p>`,
+      correction_etapes(st) {
+        const { e, good } = st._v;
+        const why = good === '1' ? 'Un événement certain se produit dans tous les cas : $P = \\dfrac{n}{n} = 1$.'
+          : good === '0' ? 'Un événement impossible n\'a aucun cas favorable : $P = \\dfrac{0}{n} = 0$.'
+            : 'La pièce a deux issues équiprobables (pile, face) et une seule est favorable : $P = \\dfrac{1}{2}$.';
+        return [`${e} $${good}$`, why];
+      },
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Probabilité (pense à simplifier) — décimal ou fraction :',
@@ -198,10 +218,17 @@ export default {
       id: 'e06', niveau: 3, type: 'saisie', consigne: 'Combien de cas favorables ?',
       generer() {
         const n = pick([10, 12, 20]), p = pick([0.25, 0.5, 0.2]); const fav = Math.round(p * n);
-        return { enonce: `Dans un sac de $${n}$ jetons, la probabilité de tirer un jeton gagnant est $${String(p).replace('.', '{,}')}$. Combien y a-t-il de jetons gagnants ?`, reponse: fav, validation: 'nombre' };
+        return { enonce: `Dans un sac de $${n}$ jetons, la probabilité de tirer un jeton gagnant est $${String(p).replace('.', '{,}')}$. Combien y a-t-il de jetons gagnants ?`, reponse: fav, validation: 'nombre', _v: { n, p, fav } };
       },
       indices: ['$P = \\dfrac{\\text{favorables}}{\\text{total}}$.', 'Donc favorables $= P \\times \\text{total}$.', 'Multiplie la probabilité par le nombre total.'],
-      correction_detaillee: () => `<p>Nombre de favorables $= P \\times \\text{total}$.</p>`,
+      correction_etapes(st) {
+        const { n, p, fav } = st._v, d = String(p).replace('.', '{,}');
+        return [
+          `$P = \\dfrac{\\text{favorables}}{\\text{total}}$, donc favorables $= P \\times \\text{total}$.`,
+          `$${d} \\times ${n} = ${fav}$.`,
+          `Il y a $${fav}$ jetons gagnants (vérification : $\\dfrac{${fav}}{${n}} = ${d}$).`,
+        ];
+      },
     },
 
     // ----- Niveau 1 : Compléter le calcul d'une probabilité (urne) -----
@@ -246,7 +273,7 @@ export default {
         };
       },
       indices: ['On compte d\'abord toutes les issues possibles.', 'Puis les cas favorables.', 'On simplifie en dernier.'],
-      correction_detaillee: () => `<p>Ordre : issues possibles → cas favorables → écrire $P$ → simplifier.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : issues possibles → cas favorables → écrire $P$ → simplifier.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
 
     // ----- Niveau 3 : Urne à trois couleurs (comme le simulateur) -----

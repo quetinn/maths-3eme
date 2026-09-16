@@ -57,21 +57,40 @@ export default {
   exercices: [
     {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Trouve le coefficient de proportionnalité :',
-      generer() { const a = randInt(2, 6), x = randInt(2, 8); return { enonce: `Une grandeur est proportionnelle : pour $x = ${x}$, on a $y = ${a * x}$. Quel est le coefficient $a$ ?`, reponse: a, validation: 'nombre' }; },
+      generer() { const a = randInt(2, 6), x = randInt(2, 8); return { enonce: `Une grandeur est proportionnelle : pour $x = ${x}$, on a $y = ${a * x}$. Quel est le coefficient $a$ ?`, reponse: a, validation: 'nombre', _v: { a, x } }; },
       indices: ['$a = \\dfrac{y}{x}$.', 'Divise la valeur de $y$ par celle de $x$.', 'Vérifie : $a \\times x$ doit redonner $y$.'],
-      correction_detaillee: () => `<p>$a = \\dfrac{y}{x}$.</p>`,
+      correction_etapes(st) {
+        const { a, x } = st._v;
+        return [
+          `Le coefficient est le nombre par lequel on multiplie $x$ pour obtenir $y$ : $a = \\dfrac{y}{x}$.`,
+          `$a = \\dfrac{${a * x}}{${x}} = ${a}$.`,
+          `Vérification : $${a} \\times ${x} = ${a * x}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Calcule la valeur manquante (proportionnalité) :',
-      generer() { const a = randInt(2, 6), x1 = randInt(2, 5), x2 = randInt(6, 10); return { enonce: `Tableau de proportionnalité : $${x1} \\rightarrow ${a * x1}$ et $${x2} \\rightarrow \\ ?$. Calcule la valeur manquante.`, reponse: a * x2, validation: 'nombre' }; },
+      generer() { const a = randInt(2, 6), x1 = randInt(2, 5), x2 = randInt(6, 10); return { enonce: `Tableau de proportionnalité : $${x1} \\rightarrow ${a * x1}$ et $${x2} \\rightarrow \\ ?$. Calcule la valeur manquante.`, reponse: a * x2, validation: 'nombre', _v: { a, x1, x2 } }; },
       indices: ['Cherche le coefficient avec la 1ʳᵉ colonne.', 'Multiplie la 2ᵉ entrée par ce coefficient.', 'Valeur $= a \\times x_2$.'],
-      correction_detaillee: () => `<p>On trouve le coefficient, puis on multiplie la nouvelle valeur par ce coefficient.</p>`,
+      correction_etapes(st) {
+        const { a, x1, x2 } = st._v;
+        return [
+          `Coefficient (1ʳᵉ colonne) : $a = ${a * x1} \\div ${x1} = ${a}$.`,
+          `On multiplie la nouvelle valeur par ce coefficient : $${x2} \\times ${a} = ${a * x2}$.`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Calcule le pourcentage :',
-      generer() { const t = pick([5, 10, 20, 25, 50]), N = pick([20, 40, 60, 80, 120, 200]); return { enonce: `Calcule $${t}\\%$ de $${N}$.`, reponse: (t / 100) * N, validation: 'nombre' }; },
+      generer() { const t = pick([5, 10, 20, 25, 50]), N = pick([20, 40, 60, 80, 120, 200]); return { enonce: `Calcule $${t}\\%$ de $${N}$.`, reponse: (t / 100) * N, validation: 'nombre', _v: { t, N } }; },
       indices: ['$t\\%$ de $N = \\dfrac{t}{100} \\times N$.', 'Ex. $10\\%$ = diviser par 10.', 'Multiplie par la fraction $\\dfrac{t}{100}$.'],
-      correction_detaillee: () => `<p>$t\\% \\text{ de } N = \\dfrac{t}{100} \\times N$.</p>`,
+      correction_etapes(st) {
+        const { t, N } = st._v, r = (t / 100) * N;
+        return [
+          `$${t}\\%$ de $${N}$, c'est $\\dfrac{${t}}{100} \\times ${N}$.`,
+          `$${N} \\div 100 = ${String(N / 100).replace('.', '{,}')}$, puis $\\times ${t}$ : $${String(r).replace('.', '{,}')}$.`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'vrai_faux', consigne: 'Ce tableau est-il proportionnel ?',
@@ -79,10 +98,17 @@ export default {
         const a = randInt(2, 5), x1 = randInt(2, 4), x2 = randInt(5, 8);
         const propor = Math.random() < 0.5;
         const y2 = propor ? a * x2 : a * x2 + pick([1, 2, -1, -2]);
-        return { enonce: `Tableau : $${x1} \\rightarrow ${a * x1}$ et $${x2} \\rightarrow ${y2}$. Est-ce proportionnel ?`, reponse: (a * x1) / x1 === y2 / x2 };
+        return { enonce: `Tableau : $${x1} \\rightarrow ${a * x1}$ et $${x2} \\rightarrow ${y2}$. Est-ce proportionnel ?`, reponse: (a * x1) / x1 === y2 / x2, _v: { x1, y1: a * x1, x2, y2 } };
       },
       indices: ['Calcule le coefficient de chaque colonne ($y \\div x$).', 'Proportionnel si les deux coefficients sont égaux.', 'Sinon, ce n\'est pas proportionnel.'],
-      correction_detaillee: () => `<p>On compare les rapports $\\dfrac{y}{x}$ des deux colonnes.</p>`,
+      correction_etapes(st) {
+        const { x1, y1, x2, y2 } = st._v, q1 = y1 / x1, q2 = y2 / x2, f = (v) => String(Math.round(v * 1000) / 1000).replace('.', '{,}');
+        return [
+          `1ʳᵉ colonne : $${y1} \\div ${x1} = ${f(q1)}$.`,
+          `2ᵉ colonne : $${y2} \\div ${x2} = ${f(q2)}$.`,
+          q1 === q2 ? `Les deux quotients sont égaux : le tableau <strong>est</strong> proportionnel (coefficient $${f(q1)}$).` : `Les quotients sont différents : le tableau <strong>n'est pas</strong> proportionnel.`,
+        ];
+      },
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Produit en croix — calcule x :',
@@ -98,9 +124,16 @@ export default {
     },
     {
       id: 'e06', niveau: 3, type: 'saisie', consigne: 'Augmentation en pourcentage — nouveau montant :',
-      generer() { const N = pick([40, 50, 80, 120, 200]), t = pick([10, 20, 25, 50]); return { enonce: `Un article coûte $${N}$ €. Son prix augmente de $${t}\\%$. Quel est le nouveau prix ?`, reponse: N * (1 + t / 100), validation: 'nombre' }; },
+      generer() { const N = pick([40, 50, 80, 120, 200]), t = pick([10, 20, 25, 50]); return { enonce: `Un article coûte $${N}$ €. Son prix augmente de $${t}\\%$. Quel est le nouveau prix ?`, reponse: N * (1 + t / 100), validation: 'nombre', _v: { N, t } }; },
       indices: ['Calcule d\'abord l\'augmentation : $\\dfrac{t}{100} \\times N$.', 'Ajoute-la au prix de départ.', 'Ou multiplie directement par $1 + \\dfrac{t}{100}$.'],
-      correction_detaillee: () => `<p>Nouveau prix $= N \\times \\left(1 + \\dfrac{t}{100}\\right)$.</p>`,
+      correction_etapes(st) {
+        const { N, t } = st._v, hausse = (t / 100) * N, f = (v) => String(Math.round(v * 100) / 100).replace('.', '{,}');
+        return [
+          `Augmentation : $\\dfrac{${t}}{100} \\times ${N} = ${f(hausse)}$ €.`,
+          `Nouveau prix : $${N} + ${f(hausse)} = ${f(N + hausse)}$ €.`,
+          `Méthode plus rapide : $${N} \\times ${f(1 + t / 100)} = ${f(N + hausse)}$ €.`,
+        ];
+      },
     },
     {
       id: 'e07', niveau: 1, type: 'complete', consigne: 'Complète le tableau de proportionnalité :',
@@ -112,7 +145,7 @@ export default {
       id: 'e08', niveau: 2, type: 'ordonner_etapes', consigne: 'Remets dans l\'ordre le calcul d\'une 4ᵉ proportionnelle :',
       generer() { const a = randInt(2, 5), b = randInt(2, 5), c = a * randInt(2, 4); return { etapes: [`Écrire l'égalité des fractions : $\\dfrac{${a}}{${b}} = \\dfrac{${c}}{x}$`, `Appliquer le produit en croix : $${a} \\times x = ${b} \\times ${c}$`, `Isoler $x$ : $x = \\dfrac{${b * c}}{${a}}$`, `Calculer : $x = ${(b * c) / a}$`] }; },
       indices: ['On écrit d\'abord l\'égalité des deux rapports.', 'On applique le produit en croix.', 'On isole puis on calcule.'],
-      correction_detaillee: () => `<p>Ordre : égalité des fractions → produit en croix → isoler $x$ → calculer.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : égalité des fractions → produit en croix → isoler $x$ → calculer.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

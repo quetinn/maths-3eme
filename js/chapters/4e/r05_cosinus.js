@@ -71,27 +71,58 @@ export default {
   exercices: [
     {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Calcule le côté adjacent (arrondi au dixième) :',
-      generer() { const ang = pick([20, 30, 40, 50, 60, 70]), hyp = randInt(6, 14); return { enonce: `Triangle rectangle. $\\widehat{B}=${ang}°$, hypoténuse $= ${hyp}$. Calcule le côté adjacent.`, reponse: round1(hyp * Math.cos(deg2rad(ang))), validation: 'nombre', tolerance: 0.05 }; },
+      generer() { const ang = pick([20, 30, 40, 50, 60, 70]), hyp = randInt(6, 14); return { enonce: `Triangle rectangle. $\\widehat{B}=${ang}°$, hypoténuse $= ${hyp}$. Calcule le côté adjacent.`, reponse: round1(hyp * Math.cos(deg2rad(ang))), validation: 'nombre', tolerance: 0.05, _v: { ang, hyp } }; },
       indices: ['$\\cos(\\widehat B) = \\dfrac{\\text{adjacent}}{\\text{hyp}}$.', 'Adjacent $= \\text{hyp} \\times \\cos(\\widehat B)$.', 'Calculatrice en degrés.'],
-      correction_detaillee: () => `<p>adjacent $= \\text{hypoténuse} \\times \\cos(\\widehat B)$.</p>`,
+      correction_etapes(st) {
+        const { ang, hyp } = st._v, adj = round1(hyp * Math.cos(deg2rad(ang)));
+        return [
+          `$\\cos(${ang}°) = \\dfrac{\\text{adjacent}}{${hyp}}$.`,
+          `L'inconnue est au numérateur : adjacent $= ${hyp} \\times \\cos(${ang}°)$.`,
+          `À la calculatrice (mode degré) : adjacent $\\approx ${String(adj).replace('.', '{,}')}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Calcule l\'hypoténuse (arrondi au dixième) :',
-      generer() { const ang = pick([20, 30, 40, 50, 60]), adj = randInt(4, 11); return { enonce: `Triangle rectangle. $\\widehat{B}=${ang}°$, côté adjacent $= ${adj}$. Calcule l'hypoténuse.`, reponse: round1(adj / Math.cos(deg2rad(ang))), validation: 'nombre', tolerance: 0.05 }; },
+      generer() { const ang = pick([20, 30, 40, 50, 60]), adj = randInt(4, 11); return { enonce: `Triangle rectangle. $\\widehat{B}=${ang}°$, côté adjacent $= ${adj}$. Calcule l'hypoténuse.`, reponse: round1(adj / Math.cos(deg2rad(ang))), validation: 'nombre', tolerance: 0.05, _v: { ang, adj } }; },
       indices: ['$\\cos(\\widehat B) = \\dfrac{\\text{adjacent}}{\\text{hyp}}$.', 'Ici l\'inconnue est au dénominateur.', 'hyp $= \\dfrac{\\text{adjacent}}{\\cos(\\widehat B)}$.'],
-      correction_detaillee: () => `<p>$\\text{hyp} = \\dfrac{\\text{adjacent}}{\\cos(\\widehat B)}$.</p>`,
+      correction_etapes(st) {
+        const { ang, adj } = st._v, hyp = round1(adj / Math.cos(deg2rad(ang)));
+        return [
+          `$\\cos(${ang}°) = \\dfrac{${adj}}{\\text{hyp}}$ : l'inconnue est au dénominateur.`,
+          `On échange : hyp $= \\dfrac{${adj}}{\\cos(${ang}°)}$.`,
+          `À la calculatrice : hyp $\\approx ${String(hyp).replace('.', '{,}')}$ (plus grande que le côté adjacent, c'est cohérent).`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Calcule l\'angle (en degrés, arrondi au degré) :',
-      generer() { const hyp = randInt(8, 14), adj = randInt(3, hyp - 1); return { enonce: `Triangle rectangle. Côté adjacent à $\\widehat B = ${adj}$, hypoténuse $= ${hyp}$. Calcule $\\widehat B$.`, reponse: Math.round(Math.acos(adj / hyp) * 180 / Math.PI), validation: 'nombre', tolerance: 0.5 }; },
+      generer() { const hyp = randInt(8, 14), adj = randInt(3, hyp - 1); return { enonce: `Triangle rectangle. Côté adjacent à $\\widehat B = ${adj}$, hypoténuse $= ${hyp}$. Calcule $\\widehat B$.`, reponse: Math.round(Math.acos(adj / hyp) * 180 / Math.PI), validation: 'nombre', tolerance: 0.5, _v: { hyp, adj } }; },
       indices: ['$\\cos(\\widehat B) = \\dfrac{\\text{adjacent}}{\\text{hyp}}$.', 'Calcule d\'abord ce rapport.', '$\\widehat B = \\cos^{-1}(\\text{rapport})$, calculatrice en degrés.'],
-      correction_detaillee: () => `<p>$\\widehat B = \\cos^{-1}\\!\\left(\\dfrac{\\text{adjacent}}{\\text{hyp}}\\right)$.</p>`,
+      correction_etapes(st) {
+        const { hyp, adj } = st._v, r = Math.round((adj / hyp) * 1000) / 1000, ang = Math.round((Math.acos(adj / hyp) * 180) / Math.PI);
+        return [
+          `$\\cos(\\widehat B) = \\dfrac{${adj}}{${hyp}} \\approx ${String(r).replace('.', '{,}')}$.`,
+          `On utilise la touche $\\cos^{-1}$ (ou « arccos ») : $\\widehat B = \\cos^{-1}(${String(r).replace('.', '{,}')})$.`,
+          `$\\widehat B \\approx ${ang}°$ (calculatrice en mode degré).`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'qcm', consigne: 'Quelle est la définition du cosinus ?',
-      generer() { const choix = ['\\dfrac{adjacent}{hypoténuse}', '\\dfrac{opposé}{hypoténuse}', '\\dfrac{opposé}{adjacent}', '\\dfrac{hypoténuse}{adjacent}']; return { enonce: `Dans un triangle rectangle, $\\cos(\\widehat B)$ est égal à :`, choix, correct: 0 }; },
-      indices: ['CAH : Cosinus = Adjacent / Hypoténuse.', 'L\'adjacent touche l\'angle.', 'L\'hypoténuse est face à l\'angle droit.'],
-      correction_detaillee: () => `<p>$\\cos = \\dfrac{\\text{adjacent}}{\\text{hypoténuse}}$ (moyen mnémotechnique : CAH).</p>`,
+      generer() {
+        const hyp = randInt(8, 14), adj = randInt(3, hyp - 1);
+        const choix = [`\\dfrac{${adj}}{${hyp}}`, `\\dfrac{${hyp}}{${adj}}`, `${adj} \\times ${hyp}`, `${hyp} - ${adj}`];
+        return { enonce: `Dans un triangle rectangle, le côté adjacent à $\\widehat B$ mesure $${adj}$ et l'hypoténuse $${hyp}$. Alors $\\cos(\\widehat B)$ est égal à :`, choix, correct: 0, _v: { hyp, adj } };
+      },
+      indices: ['CAH : Cosinus = Adjacent / Hypoténuse.', 'L\'adjacent touche l\'angle.', 'Le cosinus d\'un angle aigu est toujours plus petit que $1$.'],
+      correction_etapes(st) {
+        const { hyp, adj } = st._v;
+        return [
+          `CAH : $\\cos = \\dfrac{\\text{adjacent}}{\\text{hypoténuse}}$.`,
+          `Ici : $\\cos(\\widehat B) = \\dfrac{${adj}}{${hyp}} \\approx ${String(Math.round((adj / hyp) * 100) / 100).replace('.', '{,}')}$ — bien inférieur à $1$.`,
+        ];
+      },
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Calcule le côté adjacent (arrondi au dixième) :',
@@ -110,15 +141,15 @@ export default {
       id: 'e06', niveau: 3, type: 'vrai_faux', consigne: 'Vrai ou faux :',
       generer() {
         const props = [
-          { e: 'Le cosinus d\'un angle aigu est toujours compris entre 0 et 1.', r: true },
-          { e: 'Plus l\'angle augmente, plus son cosinus augmente.', r: false },
-          { e: 'Le cosinus est le rapport de l\'opposé sur l\'hypoténuse.', r: false },
-          { e: 'On calcule un angle à partir de son cosinus avec la touche cos⁻¹.', r: true },
+          { e: 'Le cosinus d\'un angle aigu est toujours compris entre 0 et 1.', r: true, why: 'Le côté adjacent est toujours plus court que l\'hypoténuse : le quotient est strictement compris entre $0$ et $1$.' },
+          { e: 'Plus l\'angle augmente, plus son cosinus augmente.', r: false, why: 'C\'est l\'inverse : $\\cos(20°) \\approx 0{,}94$ et $\\cos(70°) \\approx 0{,}34$. Quand l\'angle grandit, le côté adjacent rétrécit.' },
+          { e: 'Le cosinus est le rapport de l\'opposé sur l\'hypoténuse.', r: false, why: 'Non : c\'est le rapport <strong>adjacent</strong> sur hypoténuse (CAH). Opposé/hypoténuse est le sinus, vu en 3ᵉ.' },
+          { e: 'On calcule un angle à partir de son cosinus avec la touche cos⁻¹.', r: true, why: 'La touche $\\cos^{-1}$ (ou « arccos ») fait l\'opération inverse du cosinus : de la valeur, elle redonne l\'angle.' },
         ];
-        const p = pick(props); return { enonce: p.e, reponse: p.r };
+        const p = pick(props); return { enonce: p.e, reponse: p.r, _v: { why: p.why } };
       },
       indices: ['Le cosinus est un rapport adjacent/hypoténuse, toujours < 1.', 'Quand l\'angle grandit, l\'adjacent rétrécit : le cosinus diminue.', 'cos⁻¹ retrouve l\'angle.'],
-      correction_detaillee: () => `<p>$0 < \\cos < 1$ pour un angle aigu ; il diminue quand l'angle augmente.</p>`,
+      correction_etapes: (st) => [st._v.why, `L'affirmation est ${st.reponse ? 'vraie' : 'fausse'}.`],
     },
     {
       id: 'e07', niveau: 1, type: 'complete', consigne: 'Complète le calcul (angle de 60°) :',
@@ -130,7 +161,7 @@ export default {
       id: 'e08', niveau: 2, type: 'ordonner_etapes', consigne: 'Remets dans l\'ordre le calcul du côté adjacent :',
       generer() { const ang = pick([25, 30, 40, 50, 60]), hyp = randInt(6, 14); const adj = round1(hyp * Math.cos(deg2rad(ang))); return { etapes: [`Repérer les côtés : on cherche l'adjacent, on connaît l'hypoténuse`, `Écrire la relation : $\\cos(${ang}°) = \\dfrac{\\text{adjacent}}{${hyp}}$`, `Isoler : adjacent $= ${hyp} \\times \\cos(${ang}°)$`, `Calculer (calculatrice en degrés) : $\\approx ${String(adj).replace('.', '{,}')}$`] }; },
       indices: ['On repère d\'abord les côtés en jeu.', 'On écrit la relation du cosinus.', 'On isole puis on calcule.'],
-      correction_detaillee: () => `<p>Ordre : repérer les côtés → écrire la relation → isoler → calculer.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : repérer les côtés → écrire la relation → isoler → calculer.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

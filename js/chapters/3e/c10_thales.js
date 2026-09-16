@@ -106,28 +106,49 @@ export default {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Calcule la longueur demandée :',
       generer() {
         const om = randInt(2, 4), k = randInt(2, 3), oa = om * k, mn = randInt(2, 6), ab = mn * k;
-        return { enonce: `$(MN)\\parallel(AB)$, $OM=${om}$, $OA=${oa}$, $MN=${mn}$. Calcule $AB$.`, reponse: ab, validation: 'nombre', visuel: (c) => thalesFig(c, { om, oa, mn, ab: '?' }) };
+        return { enonce: `$(MN)\\parallel(AB)$, $OM=${om}$, $OA=${oa}$, $MN=${mn}$. Calcule $AB$.`, reponse: ab, validation: 'nombre', visuel: (c) => thalesFig(c, { om, oa, mn, ab: '?' }), _v: { om, oa, mn, ab } };
       },
       indices: ['$\\dfrac{OM}{OA} = \\dfrac{MN}{AB}$.', 'Le rapport $\\dfrac{OA}{OM}$ est un nombre entier ici.', '$AB = MN \\times \\dfrac{OA}{OM}$.'],
-      correction_detaillee: () => `<p>On utilise $\\dfrac{OM}{OA} = \\dfrac{MN}{AB}$, puis le produit en croix.</p>`,
+      correction_etapes(st) {
+        const { om, oa, mn, ab } = st._v;
+        return [
+          `Configuration de Thalès : $\\dfrac{OM}{OA} = \\dfrac{ON}{OB} = \\dfrac{MN}{AB}$.`,
+          `On remplace : $\\dfrac{${om}}{${oa}} = \\dfrac{${mn}}{AB}$.`,
+          `Produit en croix : $AB = \\dfrac{${mn} \\times ${oa}}{${om}} = \\dfrac{${mn * oa}}{${om}} = ${ab}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Calcule la longueur demandée :',
       generer() {
         const k = randInt(2, 3), mn = randInt(2, 5), ab = mn * k, om = randInt(2, 4), oa = om * k;
-        return { enonce: `$(MN)\\parallel(AB)$, $OA=${oa}$, $OM=${om}$, $AB=${ab}$. Calcule $MN$.`, reponse: mn, validation: 'nombre', visuel: (c) => thalesFig(c, { om, oa, mn: '?', ab }) };
+        return { enonce: `$(MN)\\parallel(AB)$, $OA=${oa}$, $OM=${om}$, $AB=${ab}$. Calcule $MN$.`, reponse: mn, validation: 'nombre', visuel: (c) => thalesFig(c, { om, oa, mn: '?', ab }), _v: { om, oa, mn, ab, k } };
       },
       indices: ['$\\dfrac{OM}{OA} = \\dfrac{MN}{AB}$.', '$MN = AB \\times \\dfrac{OM}{OA}$.', 'Simplifie d\'abord la fraction $\\dfrac{OM}{OA}$.'],
-      correction_detaillee: () => `<p>$MN = AB \\times \\dfrac{OM}{OA}$.</p>`,
+      correction_etapes(st) {
+        const { om, oa, mn, ab } = st._v;
+        return [
+          `Thalès : $\\dfrac{OM}{OA} = \\dfrac{MN}{AB}$, donc $\\dfrac{${om}}{${oa}} = \\dfrac{MN}{${ab}}$.`,
+          `Produit en croix : $MN = \\dfrac{${om} \\times ${ab}}{${oa}} = \\dfrac{${om * ab}}{${oa}}$.`,
+          `$MN = ${mn}$ (le petit triangle est bien une réduction du grand).`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Calcule (arrondis au centième si besoin) :',
       generer() {
         const om = randInt(3, 6), oa = om + randInt(2, 5), mn = randInt(4, 9), ab = round2(mn * oa / om);
-        return { enonce: `$(MN)\\parallel(AB)$, $OM=${om}$, $OA=${oa}$, $MN=${mn}$. Calcule $AB$.`, reponse: ab, validation: 'nombre', tolerance: 0.005, visuel: (c) => thalesFig(c, { om, oa, mn, ab: '?' }) };
+        return { enonce: `$(MN)\\parallel(AB)$, $OM=${om}$, $OA=${oa}$, $MN=${mn}$. Calcule $AB$.`, reponse: ab, validation: 'nombre', tolerance: 0.005, visuel: (c) => thalesFig(c, { om, oa, mn, ab: '?' }), _v: { om, oa, mn, ab } };
       },
       indices: ['$\\dfrac{OM}{OA} = \\dfrac{MN}{AB}$.', '$AB = \\dfrac{MN \\times OA}{OM}$.', 'Le résultat n\'est pas forcément entier : arrondis.'],
-      correction_detaillee: () => `<p>$AB = \\dfrac{MN \\times OA}{OM}$ ; on arrondit le quotient.</p>`,
+      correction_etapes(st) {
+        const { om, oa, mn, ab } = st._v;
+        return [
+          `Thalès : $\\dfrac{${om}}{${oa}} = \\dfrac{${mn}}{AB}$.`,
+          `Produit en croix : $AB = \\dfrac{${mn} \\times ${oa}}{${om}} = \\dfrac{${mn * oa}}{${om}}$.`,
+          `La division ne tombe pas juste : $AB \\approx ${String(ab).replace('.', '{,}')}$ (arrondi au centième).`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'qcm', consigne: 'Quelle égalité de Thalès est correcte ?',
@@ -139,7 +160,11 @@ export default {
         };
       },
       indices: ['Les rapports comparent des longueurs « qui se correspondent ».', 'On part toujours du sommet commun $O$.', 'Numérateurs côté petit triangle, dénominateurs côté grand triangle.'],
-      correction_detaillee: () => `<p>La triple égalité est $\\dfrac{OM}{OA} = \\dfrac{ON}{OB} = \\dfrac{MN}{AB}$.</p>`,
+      correction_etapes: () => [
+        'Les côtés se correspondent deux à deux : $[OM]$ avec $[OA]$, $[ON]$ avec $[OB]$, $[MN]$ avec $[AB]$.',
+        'Au numérateur les longueurs du petit triangle $OMN$, au dénominateur celles du grand triangle $OAB$, et toujours dans le même ordre.',
+        'La triple égalité est donc $\\dfrac{OM}{OA} = \\dfrac{ON}{OB} = \\dfrac{MN}{AB}$ (et surtout pas $\\dfrac{OM}{MA}$ : on compare au côté entier).',
+      ],
     },
     {
       id: 'e05', niveau: 3, type: 'vrai_faux', consigne: 'Réciproque : les droites sont-elles parallèles ?',
@@ -214,7 +239,7 @@ export default {
         };
       },
       indices: ['On vérifie d\'abord que Thalès s\'applique.', 'On écrit l\'égalité des rapports avant de remplacer.', 'Le calcul vient en dernier.'],
-      correction_detaillee: () => `<p>Ordre : vérifier la configuration → écrire les rapports → remplacer → résoudre.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : vérifier la configuration → écrire les rapports → remplacer → résoudre.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

@@ -3,7 +3,7 @@
 //  Les programmes sont affichés en pseudo-code (<pre class="pseudocode">).
 // =====================================================================
 
-import { randInt, pick } from '../../engine.js';
+import { randInt } from '../../engine.js';
 
 const code = (lines) => `<pre class="pseudocode">${lines.join('\n')}</pre>`;
 
@@ -50,10 +50,17 @@ export default {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Que va afficher ce programme ?',
       generer() {
         const a = randInt(1, 9), b = randInt(1, 9);
-        return { enonce: code([`x ← ${a}`, `x ← x + ${b}`, 'afficher x']), reponse: a + b, validation: 'nombre' };
+        return { enonce: code([`x ← ${a}`, `x ← x + ${b}`, 'afficher x']), reponse: a + b, validation: 'nombre', _v: { a, b } };
       },
       indices: ['Suis les instructions dans l\'ordre.', `Au départ $x = $ la première valeur.`, 'Puis on ajoute le second nombre.'],
-      correction_detaillee: () => `<p>On exécute chaque ligne : la dernière valeur de $x$ est affichée.</p>`,
+      correction_etapes(st) {
+        const { a, b } = st._v;
+        return [
+          `Ligne 1 : $x \\leftarrow ${a}$, donc $x = ${a}$.`,
+          `Ligne 2 : $x \\leftarrow x + ${b} = ${a} + ${b} = ${a + b}$.`,
+          `Ligne 3 : le programme affiche la valeur actuelle de $x$, soit $${a + b}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'qcm', consigne: 'Que va afficher ce programme ?',
@@ -62,38 +69,67 @@ export default {
         return {
           enonce: code([`x ← ${x}`, `si x > ${k}`, '    afficher "Grand"', 'sinon', '    afficher "Petit"']),
           choix: ['Grand', 'Petit'],
-          correct: x > k ? 0 : 1,
+          correct: x > k ? 0 : 1, ordre_fixe: true, _v: { k, x },
         };
       },
       indices: ['Compare la valeur de $x$ au seuil.', 'Si le test est vrai → première branche.', 'Sinon → branche « sinon ».'],
-      correction_detaillee: () => `<p>On évalue le test : s'il est vrai, on exécute le bloc « si », sinon le bloc « sinon ».</p>`,
+      correction_etapes(st) {
+        const { k, x } = st._v, vrai = x > k;
+        return [
+          `Après la 1ʳᵉ ligne, $x = ${x}$.`,
+          `On évalue le test : $${x} > ${k}$ est ${vrai ? 'vrai' : 'faux'}.`,
+          `On exécute donc la branche « ${vrai ? 'si' : 'sinon'} » : le programme affiche « ${vrai ? 'Grand' : 'Petit'} ».`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Que va afficher ce programme ?',
       generer() {
         const n = randInt(3, 8);
-        return { enonce: code(['s ← 0', `pour i de 1 à ${n}`, '    s ← s + i', 'afficher s']), reponse: (n * (n + 1)) / 2, validation: 'nombre' };
+        return { enonce: code(['s ← 0', `pour i de 1 à ${n}`, '    s ← s + i', 'afficher s']), reponse: (n * (n + 1)) / 2, validation: 'nombre', _v: { n } };
       },
       indices: ['La boucle ajoute $1$, puis $2$, … jusqu\'à $n$.', 'C\'est la somme $1 + 2 + \\dots + n$.', `Astuce : $\\dfrac{n(n+1)}{2}$.`],
-      correction_detaillee: (s) => `<p>On additionne tous les entiers de 1 à $n$ : la somme vaut $\\dfrac{n(n+1)}{2}$.</p>`,
+      correction_etapes(st) {
+        const { n } = st._v, liste = Array.from({ length: n }, (_, i) => i + 1);
+        return [
+          `La boucle ajoute successivement $${liste.join('$, $')}$ à la variable $s$ (qui part de $0$).`,
+          `$${liste.join(' + ')} = ${(n * (n + 1)) / 2}$.`,
+          `Astuce : $1 + 2 + \\dots + ${n} = \\dfrac{${n} \\times ${n + 1}}{2} = ${(n * (n + 1)) / 2}$.`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'saisie', consigne: 'Que va afficher ce programme ?',
       generer() {
         const n = randInt(2, 6);
-        return { enonce: code(['p ← 1', `pour i de 1 à ${n}`, '    p ← p × 2', 'afficher p']), reponse: Math.pow(2, n), validation: 'nombre' };
+        return { enonce: code(['p ← 1', `pour i de 1 à ${n}`, '    p ← p × 2', 'afficher p']), reponse: Math.pow(2, n), validation: 'nombre', _v: { n } };
       },
       indices: ['À chaque tour, $p$ est multiplié par 2.', `On double $n$ fois en partant de 1.`, `Résultat : $2^n$.`],
-      correction_detaillee: (s) => `<p>$p$ est doublé $n$ fois : $p = 2^n$.</p>`,
+      correction_etapes(st) {
+        const { n } = st._v, vals = [1];
+        for (let i = 0; i < n; i++) vals.push(vals[vals.length - 1] * 2);
+        return [
+          `$p$ part de $1$ et double à chaque tour : $${vals.join(' \\to ')}$.`,
+          `Après $${n}$ tours : $p = 2^{${n}} = ${Math.pow(2, n)}$.`,
+        ];
+      },
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Que va afficher ce programme ?',
       generer() {
         const x = randInt(2, 6), c = randInt(2, 5), n = randInt(2, 5);
-        return { enonce: code([`a ← ${x}`, `pour i de 1 à ${n}`, `    a ← a + ${c}`, 'afficher a']), reponse: x + n * c, validation: 'nombre' };
+        return { enonce: code([`a ← ${x}`, `pour i de 1 à ${n}`, `    a ← a + ${c}`, 'afficher a']), reponse: x + n * c, validation: 'nombre', _v: { x, c, n } };
       },
       indices: ['Note la valeur de départ de $a$.', 'On ajoute le même nombre à chaque tour de boucle.', 'Résultat : valeur de départ + (nombre de tours × pas).'],
-      correction_detaillee: () => `<p>La boucle ajoute le même nombre $n$ fois : $a = \\text{départ} + n \\times \\text{pas}$.</p>`,
+      correction_etapes(st) {
+        const { x, c, n } = st._v, vals = [];
+        let v = x; for (let i = 1; i <= n; i++) { v += c; vals.push(`tour ${i} : $a = ${v}$`); }
+        return [
+          `Au départ $a = ${x}$ ; la boucle tourne $${n}$ fois et ajoute $${c}$ à chaque tour.`,
+          vals.join(' ; ') + '.',
+          `On peut aussi calculer directement : $a = ${x} + ${n} \\times ${c} = ${x + n * c}$.`,
+        ];
+      },
     },
     {
       id: 'e06', niveau: 3, type: 'saisie', consigne: 'Que va afficher ce programme ?',
@@ -155,7 +191,7 @@ export default {
         };
       },
       indices: ['On initialise la variable avant la boucle.', 'On exécute les tours dans l\'ordre croissant de $i$.', 'On affiche après la boucle.'],
-      correction_detaillee: () => `<p>Ordre : initialisation → tour 1 → tour 2 → tour 3 → affichage.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : initialisation → tour 1 → tour 2 → tour 3 → affichage.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

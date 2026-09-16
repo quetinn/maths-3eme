@@ -67,9 +67,16 @@ export default {
   exercices: [
     {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Probabilité avec une urne (fraction ou décimal) :',
-      generer() { const k = randInt(2, 5), autres = randInt(3, 7), n = k + autres; return { enonce: `Une urne contient $${k}$ boules rouges et $${autres}$ boules vertes. Probabilité de tirer une rouge ?`, reponse: k / n, validation: 'nombre', tolerance: 0.01, reponseTex: `\\dfrac{${k}}{${n}}` }; },
+      generer() { const k = randInt(2, 5), autres = randInt(3, 7), n = k + autres; return { enonce: `Une urne contient $${k}$ boules rouges et $${autres}$ boules vertes. Probabilité de tirer une rouge ?`, reponse: k / n, validation: 'nombre', tolerance: 0.01, reponseTex: `\\dfrac{${k}}{${n}}`, _v: { k, autres, n } }; },
       indices: ['Compte le nombre total de boules.', 'Compte les boules favorables (rouges).', '$P = \\dfrac{\\text{rouges}}{\\text{total}}$.'],
-      correction_detaillee: () => `<p>$P = \\dfrac{\\text{favorables}}{\\text{total}}$.</p>`,
+      correction_etapes(st) {
+        const { k, autres, n } = st._v;
+        return [
+          `Nombre total de boules (cas possibles) : $${k} + ${autres} = ${n}$.`,
+          `Boules rouges (cas favorables) : $${k}$.`,
+          `$P(\\text{rouge}) = \\dfrac{${k}}{${n}} \\approx ${String(Math.round((k / n) * 100) / 100).replace('.', '{,}')}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'complete', consigne: 'Complète le calcul de la probabilité :',
@@ -79,15 +86,21 @@ export default {
     },
     {
       id: 'e03', niveau: 2, type: 'qcm', consigne: 'Choisis la bonne réponse :',
-      generer() { const cas = [{ e: 'Un événement certain a pour probabilité :', good: '1', ch: ['1', '0', '\\dfrac12', '100'] }, { e: 'Un événement impossible a pour probabilité :', good: '0', ch: ['0', '1', '\\dfrac12', '-1'] }, { e: 'Avec une pièce équilibrée, $P(\\text{pile})$ vaut :', good: '\\dfrac12', ch: ['\\dfrac12', '\\dfrac13', '1', '0'] }]; const c = pick(cas); return { enonce: c.e, choix: c.ch, correct: c.ch.indexOf(c.good) }; },
+      generer() { const cas = [{ e: 'Un événement certain a pour probabilité :', good: '1', ch: ['1', '0', '\\dfrac12', '100'] }, { e: 'Un événement impossible a pour probabilité :', good: '0', ch: ['0', '1', '\\dfrac12', '-1'] }, { e: 'Avec une pièce équilibrée, $P(\\text{pile})$ vaut :', good: '\\dfrac12', ch: ['\\dfrac12', '\\dfrac13', '1', '0'] }]; const c = pick(cas); return { enonce: c.e, choix: c.ch, correct: c.ch.indexOf(c.good), _v: { e: c.e, good: c.good } }; },
       indices: ['Une probabilité va de 0 à 1.', '0 = impossible, 1 = certain.', 'Une pièce : 2 issues équiprobables.'],
-      correction_detaillee: () => `<p>$P = 0$ : impossible ; $P = 1$ : certain ; pièce : $\\dfrac12$.</p>`,
+      correction_etapes(st) {
+        const { e, good } = st._v;
+        const why = good === '1' ? 'Tous les cas sont favorables : $P = \\dfrac{n}{n} = 1$.'
+          : good === '0' ? 'Aucun cas favorable : $P = \\dfrac{0}{n} = 0$.'
+            : 'La pièce a $2$ issues équiprobables et une seule est « pile » : $P = \\dfrac{1}{2}$.';
+        return [`${e} $${good}$`, why];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'ordonner_etapes', consigne: 'Remets dans l\'ordre le calcul d\'une probabilité :',
       generer() { const fav = pick([2, 3, 4]); const g = gcd(fav, 6); return { etapes: [`Compter les issues possibles : 6 faces du dé`, `Compter les cas favorables : ${fav} faces`, `Écrire la probabilité : $P = \\dfrac{${fav}}{6}$`, `Simplifier : $\\dfrac{${fav / g}}{${6 / g}}$`] }; },
       indices: ['On compte d\'abord toutes les issues.', 'Puis les cas favorables.', 'On simplifie en dernier.'],
-      correction_detaillee: () => `<p>Ordre : issues possibles → cas favorables → écrire $P$ → simplifier.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : issues possibles → cas favorables → écrire $P$ → simplifier.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Probabilité avec un dé (pense à simplifier) — fraction ou décimal :',
@@ -97,9 +110,17 @@ export default {
     },
     {
       id: 'e06', niveau: 3, type: 'vrai_faux', consigne: 'Vrai ou faux :',
-      generer() { const props = [{ e: 'Une probabilité peut valoir $1{,}5$.', r: false }, { e: 'Un événement certain a une probabilité de $1$.', r: true }, { e: 'Une probabilité est toujours positive ou nulle.', r: true }, { e: 'Une probabilité de $0$ signifie « certain ».', r: false }]; const p = pick(props); return { enonce: p.e, reponse: p.r }; },
+      generer() {
+        const props = [
+          { e: 'Une probabilité peut valoir $1{,}5$.', r: false, why: 'Non : le nombre de cas favorables ne peut pas dépasser le nombre de cas possibles, donc $P \\le 1$.' },
+          { e: 'Un événement certain a une probabilité de $1$.', r: true, why: 'Oui : tous les cas sont favorables, $P = \\dfrac{n}{n} = 1$.' },
+          { e: 'Une probabilité est toujours positive ou nulle.', r: true, why: 'Oui : c\'est un quotient de deux nombres positifs, donc $P \\ge 0$.' },
+          { e: 'Une probabilité de $0$ signifie « certain ».', r: false, why: 'Non, c\'est l\'inverse : $P = 0$ signifie <strong>impossible</strong> ; $P = 1$ signifie certain.' },
+        ];
+        const p = pick(props); return { enonce: p.e, reponse: p.r, _v: { why: p.why } };
+      },
       indices: ['Une probabilité est entre 0 et 1.', '0 = impossible, 1 = certain.', 'Elle ne dépasse jamais 1.'],
-      correction_detaillee: () => `<p>$0 \\le P \\le 1$ : $0$ impossible, $1$ certain.</p>`,
+      correction_etapes: (st) => [st._v.why, `L'affirmation est ${st.reponse ? 'vraie' : 'fausse'}.`],
     },
   ],
 

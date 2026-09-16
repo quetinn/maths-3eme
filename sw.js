@@ -10,7 +10,7 @@
 //  Bumper VERSION purge les anciens caches.
 // =====================================================================
 
-const VERSION = 'v12';
+const VERSION = 'v13';
 const CACHE = 'maths-college-' + VERSION;
 
 // Coquille de l'application (chemins relatifs à l'emplacement du SW = racine).
@@ -19,6 +19,7 @@ const CORE = [
   './', './index.html', './manifest.json',
   './css/style.css',
   './js/app.js', './js/programme.js', './js/stats.js', './js/cloud.js', './js/fusion.js', './js/config.js', './js/engine.js', './js/render.js', './js/aide_memoire.js', './js/brevet.js',
+  './js/chapters/commun.js',
   './js/chapters/3e/c01_calcul_litteral.js',
   './js/chapters/3e/c02_identites_remarquables.js',
   './js/chapters/3e/c03_equations_1er_degre.js',
@@ -48,6 +49,29 @@ const CORE = [
   './js/chapters/4e/r10_probabilites.js',
   './js/chapters/4e/r11_transformations.js',
   './js/chapters/4e/r12_aires_volumes.js',
+  './js/chapters/4e/r13_thales.js',
+  './js/chapters/4e/r14_rotation.js',
+  './js/chapters/4e/r15_nombres_premiers.js',
+  './js/chapters/4e/r16_vitesses.js',
+  './js/chapters/4e/r17_pyramides_cones.js',
+  './js/chapters/4e/r18_scratch.js',
+  './js/chapters/5e/v01_priorites.js',
+  './js/chapters/5e/v02_relatifs.js',
+  './js/chapters/5e/v03_fractions.js',
+  './js/chapters/5e/v04_carres_cubes.js',
+  './js/chapters/5e/v05_calcul_litteral.js',
+  './js/chapters/5e/v06_proportionnalite.js',
+  './js/chapters/5e/v07_grandeurs.js',
+  './js/chapters/5e/v08_reperage.js',
+  './js/chapters/5e/v09_angles.js',
+  './js/chapters/5e/v10_triangles.js',
+  './js/chapters/5e/v11_parallelogrammes.js',
+  './js/chapters/5e/v12_symetrie_centrale.js',
+  './js/chapters/5e/v13_solides.js',
+  './js/chapters/5e/v14_aires_volumes.js',
+  './js/chapters/5e/v15_statistiques.js',
+  './js/chapters/5e/v16_probabilites.js',
+  './js/chapters/5e/v17_programmation.js',
   './icons/icon-192.png', './icons/icon-512.png',
 ];
 

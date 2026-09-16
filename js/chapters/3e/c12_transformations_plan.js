@@ -57,28 +57,46 @@ export default {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Translation — donne l\'ABSCISSE de l\'image :',
       generer() {
         const x = randIntNonZero(-5, 5), y = randIntNonZero(-5, 5), a = randIntNonZero(-4, 4), b = randIntNonZero(-4, 4);
-        return { enonce: `$M(${x}\\,;${y})$ est translaté du vecteur $\\vec u(${a}\\,;${b})$. Quelle est l'abscisse de $M'$ ?`, reponse: x + a, validation: 'nombre' };
+        return { enonce: `$M(${x}\\,;${y})$ est translaté du vecteur $\\vec u(${a}\\,;${b})$. Quelle est l'abscisse de $M'$ ?`, reponse: x + a, validation: 'nombre', _v: { x, y, a, b } };
       },
       indices: ['On ajoute le vecteur aux coordonnées.', "L'abscisse de $M'$ est $x + a$.", 'Attention aux signes.'],
-      correction_detaillee: () => `<p>$M'(x+a\\,;y+b)$ : l'abscisse est $x+a$.</p>`,
+      correction_etapes(st) {
+        const { x, y, a, b } = st._v, p = (n) => (n < 0 ? `(${n})` : n);
+        return [
+          `La translation de vecteur $\\vec u(${a}\\,;${b})$ ajoute $${a}$ à l'abscisse et $${b}$ à l'ordonnée.`,
+          `Abscisse : $${x} + ${p(a)} = ${x + a}$ (l'ordonnée serait $${y} + ${p(b)} = ${y + b}$).`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Symétrie centrale (origine) — donne l\'ORDONNÉE de l\'image :',
       generer() {
         const x = randIntNonZero(-5, 5), y = randIntNonZero(-5, 5);
-        return { enonce: `$M(${x}\\,;${y})$. Quelle est l'ordonnée de son symétrique par rapport à $O$ ?`, reponse: -y, validation: 'nombre' };
+        return { enonce: `$M(${x}\\,;${y})$. Quelle est l'ordonnée de son symétrique par rapport à $O$ ?`, reponse: -y, validation: 'nombre', _v: { x, y } };
       },
       indices: ['La symétrie centrale change les deux signes.', "$M'(-x\\,;-y)$.", "L'ordonnée devient $-y$."],
-      correction_detaillee: () => `<p>Par symétrie de centre $O$ : $M'(-x\\,;-y)$.</p>`,
+      correction_etapes(st) {
+        const { x, y } = st._v;
+        return [
+          `Par la symétrie de centre $O$, $O$ est le milieu de $[MM']$ : les deux coordonnées changent de signe.`,
+          `$M(${x}\\,;${y}) \\rightarrow M'(${-x}\\,;${-y})$ : l'ordonnée cherchée est $${-y}$.`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Symétrie axiale (axe des abscisses) — donne l\'ORDONNÉE :',
       generer() {
         const x = randIntNonZero(-5, 5), y = randIntNonZero(-5, 5);
-        return { enonce: `$M(${x}\\,;${y})$. Symétrique par rapport à l'axe des abscisses : quelle est son ordonnée ?`, reponse: -y, validation: 'nombre' };
+        return { enonce: `$M(${x}\\,;${y})$. Symétrique par rapport à l'axe des abscisses : quelle est son ordonnée ?`, reponse: -y, validation: 'nombre', _v: { x, y } };
       },
       indices: ['La symétrie par rapport à l\'axe des $x$ garde l\'abscisse.', 'Elle change le signe de l\'ordonnée.', "$M'(x\\,;-y)$."],
-      correction_detaillee: () => `<p>Par rapport à l'axe des abscisses : $M'(x\\,;-y)$.</p>`,
+      correction_etapes(st) {
+        const { x, y } = st._v;
+        return [
+          `Le pliage se fait le long de l'axe des abscisses : le point garde son abscisse ($${x}$) et passe de l'autre côté.`,
+          `$M(${x}\\,;${y}) \\rightarrow M'(${x}\\,;${-y})$ : l'ordonnée devient $${-y}$.`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'qcm', consigne: 'Quelle transformation ?',
@@ -90,10 +108,16 @@ export default {
         ];
         const ch = pick(cases);
         const choix = ['translation', 'symétrie centrale', 'symétrie axiale'];
-        return { enonce: `Quelle est la transformation ${ch.e} ?`, choix, correct: choix.indexOf(ch.good) };
+        return { enonce: `Quelle est la transformation ${ch.e} ?`, choix, correct: choix.indexOf(ch.good), ordre_fixe: true, _v: { e: ch.e, good: ch.good } };
       },
       indices: ['Translation = glissement.', 'Symétrie centrale = demi-tour.', 'Symétrie axiale = pliage.'],
-      correction_detaillee: () => `<p>Chaque transformation a sa « signature » : glissement, demi-tour ou pliage.</p>`,
+      correction_etapes(st) {
+        const { e, good } = st._v;
+        const why = good === 'translation' ? 'Tous les points se déplacent de la même façon, dans la même direction et de la même longueur : c\'est le vecteur de translation.'
+          : good === 'symétrie centrale' ? "Le centre est le milieu de chaque segment [point ; image] : c'est un demi-tour (rotation de $180°$)."
+            : "Chaque point et son image sont de part et d'autre de l'axe, à la même distance : c'est un pliage.";
+        return [`La transformation ${e} est la <strong>${good}</strong>.`, why];
+      },
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Rotation +90° (centre O) — donne l\'ABSCISSE de l\'image :',
@@ -115,16 +139,16 @@ export default {
       id: 'e06', niveau: 3, type: 'vrai_faux', consigne: 'Vrai ou faux :',
       generer() {
         const props = [
-          { e: 'Une translation conserve les longueurs.', r: true },
-          { e: 'Une symétrie axiale agrandit la figure.', r: false },
-          { e: 'Une rotation conserve les angles.', r: true },
-          { e: 'Une symétrie centrale change la taille de la figure.', r: false },
+          { e: 'Une translation conserve les longueurs.', r: true, why: 'Vrai : la figure glisse sans être déformée, toutes les longueurs sont conservées.' },
+          { e: 'Une symétrie axiale agrandit la figure.', r: false, why: 'Faux : c\'est un pliage, la figure image est superposable à la figure de départ (même taille).' },
+          { e: 'Une rotation conserve les angles.', r: true, why: 'Vrai : la figure tourne sans se déformer, angles et longueurs sont conservés.' },
+          { e: 'Une symétrie centrale change la taille de la figure.', r: false, why: 'Faux : c\'est un demi-tour, la taille ne change pas (seule une homothétie de rapport différent de 1 change la taille).' },
         ];
         const p = pick(props);
-        return { enonce: p.e, reponse: p.r };
+        return { enonce: p.e, reponse: p.r, _v: { why: p.why } };
       },
       indices: ['Ces transformations sont des « isométries ».', 'Isométrie = conserve les distances.', 'La figure image est superposable à l\'originale.'],
-      correction_detaillee: () => `<p>Translations, symétries et rotations conservent longueurs et angles : ce sont des isométries.</p>`,
+      correction_etapes: (st) => [st._v.why, 'Translations, symétries et rotations sont des <strong>isométries</strong> : elles conservent longueurs, angles et aires.'],
     },
 
     // ----- Niveau 1 : Compléter les coordonnées de l'image -----
@@ -170,7 +194,7 @@ export default {
         };
       },
       indices: ['On identifie d\'abord la transformation.', 'On applique la règle avant de calculer.', 'On traite les deux coordonnées.'],
-      correction_detaillee: () => `<p>Ordre : identifier la translation → appliquer la règle → calculer l'abscisse → calculer l'ordonnée.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : identifier la translation → appliquer la règle → calculer l'abscisse → calculer l'ordonnée.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

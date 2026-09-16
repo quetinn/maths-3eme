@@ -44,19 +44,33 @@ export default {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Calcule le volume du cube :',
       generer() {
         const a = randInt(2, 9);
-        return { enonce: `Volume d'un cube d'arête $${a}$ cm ?`, reponse: a * a * a, validation: 'nombre' };
+        return { enonce: `Volume d'un cube d'arête $${a}$ cm ?`, reponse: a * a * a, validation: 'nombre', _v: { a } };
       },
       indices: ["$V_{cube} = a^3$.", 'Multiplie l\'arête trois fois par elle-même.', `$a^3 = a\\times a\\times a$.`],
-      correction_detaillee: () => `<p>$V = a^3$.</p>`,
+      correction_etapes(st) {
+        const { a } = st._v;
+        return [
+          `Volume d'un cube : $V = a^3 = a \\times a \\times a$.`,
+          `$${a} \\times ${a} = ${a * a}$, puis $${a * a} \\times ${a} = ${a * a * a}$.`,
+          `$V = ${a * a * a}$ cm³.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'saisie', consigne: 'Calcule le volume de la pyramide :',
       generer() {
         const B = 3 * randInt(2, 8), h = randInt(2, 9);
-        return { enonce: `Pyramide de base d'aire $B = ${B}$ cm² et de hauteur $h = ${h}$ cm. Volume ?`, reponse: (B * h) / 3, validation: 'nombre' };
+        return { enonce: `Pyramide de base d'aire $B = ${B}$ cm² et de hauteur $h = ${h}$ cm. Volume ?`, reponse: (B * h) / 3, validation: 'nombre', _v: { B, h } };
       },
       indices: ["$V = \\dfrac13 \\times B \\times h$.", "Multiplie l'aire de base par la hauteur.", 'Divise le résultat par 3.'],
-      correction_detaillee: () => `<p>$V = \\dfrac13 B h$.</p>`,
+      correction_etapes(st) {
+        const { B, h } = st._v;
+        return [
+          `Volume d'une pyramide : $V = \\dfrac{B \\times h}{3}$.`,
+          `$${B} \\times ${h} = ${B * h}$.`,
+          `$V = ${B * h} \\div 3 = ${(B * h) / 3}$ cm³.`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Volume du cône (arrondi au dixième, π ≈ 3,14) :',
@@ -78,10 +92,17 @@ export default {
       id: 'e04', niveau: 2, type: 'saisie', consigne: 'Volume de la boule (arrondi au dixième, π ≈ 3,14) :',
       generer() {
         const r = randInt(2, 6);
-        return { enonce: `Boule de rayon $r = ${r}$ cm. Volume ?`, reponse: r1((4 / 3) * Math.PI * r * r * r), accepte: [r1((4 / 3) * 3.14 * r * r * r)], validation: 'nombre', tolerance: 0.05 };
+        return { enonce: `Boule de rayon $r = ${r}$ cm. Volume ?`, reponse: r1((4 / 3) * Math.PI * r * r * r), accepte: [r1((4 / 3) * 3.14 * r * r * r)], validation: 'nombre', tolerance: 0.05, _v: { r } };
       },
       indices: ["$V = \\dfrac43 \\pi r^3$.", 'Calcule $r^3$.', "Multiplie par $\\pi$ et par $\\dfrac43$, puis arrondis."],
-      correction_detaillee: () => `<p>$V = \\dfrac43 \\pi r^3$.</p>`,
+      correction_etapes(st) {
+        const { r } = st._v, v = r1((4 / 3) * Math.PI * r * r * r);
+        return [
+          `Volume d'une boule : $V = \\dfrac{4}{3} \\pi r^3$.`,
+          `$r^3 = ${r}^3 = ${r * r * r}$, donc $V = \\dfrac{4 \\times ${r * r * r}}{3}\\pi = \\dfrac{${4 * r * r * r}}{3}\\pi$.`,
+          `$V \\approx ${String(v).replace('.', '{,}')}$ cm³ (arrondi au dixième).`,
+        ];
+      },
     },
     {
       id: 'e05', niveau: 3, type: 'qcm', consigne: 'Identifie la section :',
@@ -92,10 +113,16 @@ export default {
           { e: "La section d'un cylindre par un plan parallèle à sa base est :", good: 'un disque', ch: ['un disque', 'un rectangle', 'un triangle', 'un carré'] },
         ];
         const c = pick(cas);
-        return { enonce: c.e, choix: c.ch, correct: c.ch.indexOf(c.good) };
+        return { enonce: c.e, choix: c.ch, correct: c.ch.indexOf(c.good), _v: { e: c.e, good: c.good } };
       },
       indices: ['Imagine le plan qui « coupe » le solide.', 'La forme dépend du solide et de l\'orientation du plan.', 'Une sphère donne toujours un cercle.'],
-      correction_detaillee: () => `<p>La forme de la section dépend du solide et de la position du plan de coupe.</p>`,
+      correction_etapes(st) {
+        const { e, good } = st._v;
+        const why = good === 'un cercle' ? "Quelle que soit la position du plan (tant qu'il coupe la sphère), la section est un cercle ; il est d'autant plus petit que le plan est loin du centre."
+          : good === 'un rectangle' ? 'Un plan parallèle à une face « recopie » cette face : la section est un rectangle identique à cette face.'
+            : 'Un plan parallèle à la base « recopie » la base : la section est un disque de même rayon.';
+        return [`${e} <strong>${good}</strong>.`, why];
+      },
     },
     {
       id: 'e06', niveau: 3, type: 'saisie', consigne: 'Volume du pavé droit :',
@@ -155,7 +182,7 @@ export default {
         };
       },
       indices: ['On choisit d\'abord la bonne formule.', 'On calcule l\'aire de base avant le reste.', 'On arrondit en dernier.'],
-      correction_detaillee: () => `<p>Ordre : formule → aire de base → multiplier par $h$ et $\\tfrac13$ → arrondir.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : formule → aire de base → multiplier par $h$ et $\\tfrac13$ → arrondir.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 

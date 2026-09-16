@@ -355,6 +355,24 @@ export function prepareChoices(state) {
   return Object.assign({}, state, { choix: items.map((it) => it.c), correct: correct >= 0 ? correct : items.findIndex((it) => it.c === good) });
 }
 
+/**
+ * Découpe l'énoncé d'un exercice « complète le calcul » en morceaux :
+ * [texte, n°, texte, n°, …, texte]. Seuls les {n} placés HORS des formules
+ * $…$ sont des cases à remplir : dans « $\dfrac{3}{4}$ » ou « $2^{5}$ »,
+ * {3}, {4} et {5} sont du LaTeX (avant, ils créaient de fausses cases).
+ */
+export function decouperTrous(s) {
+  const parts = [''];
+  String(s ?? '').split(/(\$[^$]*\$)/).forEach((seg) => {
+    if (seg.length > 1 && seg.startsWith('$') && seg.endsWith('$')) { parts[parts.length - 1] += seg; return; }
+    seg.split(/\{(\d+)\}/).forEach((p, i) => {
+      if (i % 2 === 1) parts.push(+p, '');
+      else parts[parts.length - 1] += p;
+    });
+  });
+  return parts;
+}
+
 // ---------------------------------------------------------------------
 //  4. Messages d'encouragement (ton positif, jamais punitif)
 // ---------------------------------------------------------------------
@@ -446,7 +464,7 @@ function buildSpeechText(exercice, state) {
   if (consigne) parts.push(texToSpeech(consigne));
   const oral = state.texteOral || exercice.texteOral;
   if (oral) parts.push(typeof oral === 'function' ? oral(state) : oral);
-  else if (exercice.type === 'complete') parts.push(texToSpeech(String(state.enonce_complete || state.enonce || '').replace(/\{\d+\}/g, ' (à compléter) ')));
+  else if (exercice.type === 'complete') parts.push(texToSpeech(decouperTrous(state.enonce_complete || state.enonce).map((p, i) => (i % 2 ? ' (à compléter) ' : p)).join('')));
   else if (exercice.type === 'ordonner_etapes') parts.push('Remets ces étapes dans l\'ordre : ' + (state.etapes || []).map(texToSpeech).join(' ; '));
   else if (state.enonce) parts.push(texToSpeech(state.enonce));
   if (state.choix) parts.push('Réponses possibles : ' + state.choix.map((c) => texToSpeech('$' + c + '$')).join(' ; '));
@@ -493,7 +511,7 @@ export function mountExercise(container, exercice, hooks = {}) {
         <div class="answer-row"><button class="btn btn-primary" data-act="check">Vérifier l'ordre</button></div>`;
     }
     if (type === 'complete') {
-      const parts = String(state.enonce_complete || state.enonce).split(/\{(\d+)\}/);
+      const parts = decouperTrous(state.enonce_complete || state.enonce);
       let html = '<div class="complete-zone">';
       parts.forEach((p, i) => {
         if (i % 2 === 1) {
@@ -611,7 +629,8 @@ export function mountExercise(container, exercice, hooks = {}) {
       checkBtn.addEventListener('click', () => onResult(order.every((v, i) => v === i)));
     } else if (type === 'complete') {
       const inputs = [...wrap.querySelectorAll('.complete-input')];
-      const check = () => onResult(state.champs.every((c, i) => checkAnswer(inputs[i] ? inputs[i].value : '', c)));
+      const champ = (i) => inputs.find((inp) => +inp.dataset.idx === i);
+      const check = () => onResult(state.champs.every((c, i) => checkAnswer(champ(i) ? champ(i).value : '', c)));
       checkBtn.addEventListener('click', check);
       inputs.forEach((inp) => {
         inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') check(); });
@@ -681,8 +700,10 @@ export function mountExercise(container, exercice, hooks = {}) {
   function appendReponse(sol) {
     if (type === 'qcm' || type === 'vrai_faux' || type === 'ordonner_etapes') return;
     let rep = '';
-    if (type === 'complete') rep = state.champs.map((c) => c.reponseTex || c.reponse).join(' ; ');
-    else rep = state.reponseTex ? katexInline(state.reponseTex) : (typeof state.reponse === 'string' ? renderChoiceHTML(state.reponse) : state.reponse);
+    // Nombres affichés à la française (1,75 et non 1.75), sans erreur d'arrondi (0,30000000004).
+    const nombre = (x) => (typeof x === 'number' ? String(Math.round(x * 1e6) / 1e6).replace('.', ',') : x);
+    if (type === 'complete') rep = state.champs.map((c) => (c.reponseTex ? katexInline(c.reponseTex) : nombre(c.reponse))).join(' ; ');
+    else rep = state.reponseTex ? katexInline(state.reponseTex) : (typeof state.reponse === 'string' ? renderChoiceHTML(state.reponse) : nombre(state.reponse));
     if (rep !== '' && rep !== undefined) { const p = document.createElement('p'); p.className = 'sol-answer'; p.innerHTML = `Réponse : <strong>${rep}</strong>`; sol.appendChild(p); renderMath(p); }
   }
 

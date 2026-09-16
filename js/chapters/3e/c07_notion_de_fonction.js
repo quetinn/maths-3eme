@@ -52,10 +52,17 @@ export default {
       id: 'e01', niveau: 1, type: 'saisie', consigne: 'Calcule l\'image demandée :',
       generer() {
         const a = randIntNonZero(-3, 4), b = randInt(-4, 4), x0 = randInt(-3, 4);
-        return { enonce: `$f(x) = ${affTeX(a, b)}$. &nbsp; Calcule $f(${x0})$.`, reponse: a * x0 + b, validation: 'nombre' };
+        return { enonce: `$f(x) = ${affTeX(a, b)}$. &nbsp; Calcule $f(${x0})$.`, reponse: a * x0 + b, validation: 'nombre', _v: { a, b, x0 } };
       },
       indices: ['Remplace $x$ par la valeur indiquée.', 'Effectue d\'abord la multiplication, puis l\'addition.', 'Attention aux signes des nombres négatifs.'],
-      correction_detaillee: () => `<p>On substitue la valeur de $x$ dans $f(x)$ puis on calcule.</p>`,
+      correction_etapes(st) {
+        const { a, b, x0 } = st._v, p = (n) => (n < 0 ? `(${n})` : n);
+        return [
+          `On remplace $x$ par $${x0}$ : $f(${x0}) = ${a} \\times ${p(x0)} ${b < 0 ? `- ${-b}` : `+ ${b}`}$.`,
+          `Produit d'abord : $${a} \\times ${p(x0)} = ${a * x0}$.`,
+          `Puis $${a * x0} ${b < 0 ? `- ${-b}` : `+ ${b}`} = ${a * x0 + b}$, donc $f(${x0}) = ${a * x0 + b}$.`,
+        ];
+      },
     },
     {
       id: 'e02', niveau: 1, type: 'qcm', consigne: 'Choisis la bonne interprétation :',
@@ -65,11 +72,18 @@ export default {
         return {
           enonce: `On sait que $f(${x0}) = ${y0}$.`,
           choix: [`L'image de $${x0}$ par $f$ est $${y0}$.`, `L'image de $${y0}$ par $f$ est $${x0}$.`, `$${x0}$ et $${y0}$ sont deux images.`, `$f$ vaut toujours $${y0}$.`],
-          correct: 0,
+          correct: 0, _v: { x0, y0 },
         };
       },
       indices: ['$f(\\text{entrée}) = \\text{sortie}$.', 'La sortie est l\'image de l\'entrée.', 'Le nombre entre parenthèses est l\'antécédent.'],
-      correction_detaillee: () => `<p>$f(a)=b$ signifie « l'image de $a$ est $b$ », ou « $a$ est un antécédent de $b$ ».</p>`,
+      correction_etapes(st) {
+        const { x0, y0 } = st._v;
+        return [
+          `Dans $f(${x0}) = ${y0}$, le nombre entre parenthèses ($${x0}$) est celui qu'on donne à la fonction : c'est un <strong>antécédent</strong>.`,
+          `Le résultat ($${y0}$) est ce que la fonction renvoie : c'est l'<strong>image</strong>.`,
+          `Donc : l'image de $${x0}$ par $f$ est $${y0}$ (et $${x0}$ est un antécédent de $${y0}$).`,
+        ];
+      },
     },
     {
       id: 'e03', niveau: 2, type: 'saisie', consigne: 'Lis l\'image sur le graphique :',
@@ -78,12 +92,19 @@ export default {
         const f = (x) => a * x + b;
         return {
           enonce: `Lis l'image de $${x0}$ par la fonction représentée.`,
-          reponse: a * x0 + b, validation: 'nombre',
+          reponse: a * x0 + b, validation: 'nombre', _v: { a, b, x0 },
           visuel: (c) => plotFunction(c, f, { xmin: -5, xmax: 5 }),
         };
       },
       indices: ['Place-toi sur l\'abscisse donnée.', 'Monte (ou descends) jusqu\'à la courbe.', 'Lis l\'ordonnée du point. Tu peux toucher la courbe.'],
-      correction_detaillee: () => `<p>L'image se lit sur l'axe vertical, à la hauteur de la courbe au-dessus de $x$.</p>`,
+      correction_etapes(st) {
+        const { a, b, x0 } = st._v, y = a * x0 + b;
+        return [
+          `On part de $x = ${x0}$ sur l'axe horizontal et on rejoint la droite verticalement.`,
+          `On lit alors l'ordonnée du point : $${y}$.`,
+          `L'image de $${x0}$ est $${y}$, autrement dit le point $(${x0}\\,;\\,${y})$ appartient à la courbe.`,
+        ];
+      },
     },
     {
       id: 'e04', niveau: 2, type: 'saisie', consigne: 'Lis l\'antécédent sur le graphique :',
@@ -93,12 +114,19 @@ export default {
         const f = (x) => a * x + b;
         return {
           enonce: `Lis l'antécédent de $${y0}$ par la fonction représentée.`,
-          reponse: x1, validation: 'nombre',
+          reponse: x1, validation: 'nombre', _v: { x1, y0 },
           visuel: (c) => plotFunction(c, f, { xmin: -5, xmax: 5 }),
         };
       },
       indices: ['Place-toi sur l\'ordonnée donnée.', 'Va horizontalement jusqu\'à la courbe.', 'Lis l\'abscisse du point.'],
-      correction_detaillee: () => `<p>L'antécédent se lit sur l'axe horizontal, sous le point de la courbe d'ordonnée donnée.</p>`,
+      correction_etapes(st) {
+        const { x1, y0 } = st._v;
+        return [
+          `Cette fois on part de $${y0}$ sur l'axe <strong>vertical</strong> et on rejoint la droite horizontalement.`,
+          `On descend ensuite sur l'axe horizontal : on lit $${x1}$.`,
+          `L'antécédent de $${y0}$ est $${x1}$ (vérification : $f(${x1}) = ${y0}$).`,
+        ];
+      },
     },
     {
       id: 'e05', niveau: 3, type: 'saisie', consigne: 'Trouve l\'antécédent par le calcul :',
@@ -124,12 +152,19 @@ export default {
         const f = (x) => x * x + c0;
         return {
           enonce: `$f(x) = x^2 ${c0 >= 0 ? '+ ' + c0 : '- ' + -c0}$. &nbsp; Calcule $f(${x0})$.`,
-          reponse: x0 * x0 + c0, validation: 'nombre',
+          reponse: x0 * x0 + c0, validation: 'nombre', _v: { c0, x0 },
           visuel: (cc) => plotFunction(cc, f, { xmin: -4, xmax: 4 }),
         };
       },
       indices: ['$x^2$ veut dire $x\\times x$.', 'Le carré d\'un nombre négatif est positif.', 'Calcule $x^2$ d\'abord, puis ajoute la constante.'],
-      correction_detaillee: () => `<p>On calcule $x^2$ (toujours positif) puis on ajoute la constante.</p>`,
+      correction_etapes(st) {
+        const { c0, x0 } = st._v, p = (n) => (n < 0 ? `(${n})` : n), suite = c0 >= 0 ? `+ ${c0}` : `- ${-c0}`;
+        return [
+          `On remplace $x$ par $${x0}$ : $f(${x0}) = ${p(x0)}^2 ${suite}$.`,
+          `$${p(x0)}^2 = ${x0 * x0}$${x0 < 0 ? ' (le carré d\'un nombre négatif est positif)' : ''}.`,
+          `$${x0 * x0} ${suite} = ${x0 * x0 + c0}$, donc $f(${x0}) = ${x0 * x0 + c0}$.`,
+        ];
+      },
     },
 
     // ----- Niveau 1 : Compléter le calcul d'une image -----
@@ -174,7 +209,7 @@ export default {
         };
       },
       indices: ['On pose l\'équation $f(x) = $ valeur.', 'On isole le terme en $x$.', 'On divise en dernier.'],
-      correction_detaillee: () => `<p>Ordre : poser l'équation → isoler $ax$ → diviser → conclure.</p>`,
+      correction_detaillee: (st) => `<p>Ordre : poser l'équation → isoler $ax$ → diviser → conclure.</p><ol>${st.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>`,
     },
   ],
 
